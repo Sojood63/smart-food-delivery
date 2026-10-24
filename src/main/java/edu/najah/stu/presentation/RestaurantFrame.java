@@ -86,7 +86,7 @@ public class RestaurantFrame extends JFrame {
                                                           int index, boolean selected, boolean focus) {
                 super.getListCellRendererComponent(list, value, index, selected, focus);
                 MenuItem item = (MenuItem) value;
-                setText("  " + item.getName() + "   -   " + item.getPrice().setScale(2) + " NIS");
+                setText("  " + MenuFormatter.formatMenuLine(item));
                 return this;
             }
         });
@@ -178,9 +178,9 @@ public class RestaurantFrame extends JFrame {
             return;
         }
         detailName.setText(item.getName());
-        detailPrice.setText(item.getPrice().setScale(2) + " NIS");
+        detailPrice.setText(MenuFormatter.formatPrice(item.getPrice()));
         detailRestaurant.setText(restaurant.getName());
-        detailStatus.setText(item.isAvailable() ? "Available" : "Unavailable");
+        detailStatus.setText(MenuFormatter.availabilityText(item));
     }
 
     private void clearDetails() {
