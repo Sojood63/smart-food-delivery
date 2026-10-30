@@ -1,6 +1,7 @@
 package edu.najah.stu.service;
 
 import edu.najah.stu.domain.MenuItem;
+import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,11 +11,14 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class MenuServiceTest {
+
+    private static final OpeningHours HOURS = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(22, 0));
 
     private InMemoryRestaurantRepository repository;
     private MenuService menuService;
@@ -24,7 +28,7 @@ class MenuServiceTest {
     void setUp() {
         repository = new InMemoryRestaurantRepository();
         menuService = new MenuService(repository);
-        restaurant = new Restaurant("R1", "Abu Salem");
+        restaurant = new Restaurant("R1", "Abu Salem", HOURS);
         repository.save(restaurant);
     }
 
