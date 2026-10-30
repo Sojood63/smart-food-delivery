@@ -36,4 +36,12 @@ build/
 .vscode/
 
 ### Mac OS ###
+<<<<<<< HEAD
 .DS_Store
+=======
+.DS_Store
+
+### Project ###
+.idea/
+out/
+>>>>>>> 7ed5a0beb10897741a0c020243d00ca9c3e18101
