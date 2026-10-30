@@ -1,13 +1,14 @@
 package edu.najah.stu.domain;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Represents a restaurant in the food delivery system.
  *
- * <p>A restaurant has a unique id, a display name and a menu of
- * {@link MenuItem}s. The menu can only be changed through
+ * <p>A restaurant has a unique id, a display name, daily
+ * {@link OpeningHours} and a menu of {@link MenuItem}s. The menu can only be changed through
  * {@link #addMenuItem(MenuItem)}, which rejects duplicate items.</p>
  */
 public class Restaurant {
@@ -18,25 +19,33 @@ public class Restaurant {
     /** Display name of the restaurant. */
     private final String name;
 
+    /** The daily hours in which the restaurant accepts orders. */
+    private final OpeningHours openingHours;
+
     /** The items offered by this restaurant, available or not. */
     private final List<MenuItem> menuItems = new ArrayList<>();
 
     /**
      * Creates a restaurant with an empty menu.
      *
-     * @param id   unique identifier; must not be null or blank
-     * @param name display name; must not be null or blank
-     * @throws IllegalArgumentException if the id or name is missing
+     * @param id           unique identifier; must not be null or blank
+     * @param name         display name; must not be null or blank
+     * @param openingHours daily opening hours; must not be null
+     * @throws IllegalArgumentException if the id, name or opening hours are missing
      */
-    public Restaurant(String id, String name) {
+    public Restaurant(String id, String name, OpeningHours openingHours) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Restaurant id must not be empty");
         }
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Restaurant name must not be empty");
         }
+        if (openingHours == null) {
+            throw new IllegalArgumentException("Opening hours must not be null");
+        }
         this.id = id;
         this.name = name;
+        this.openingHours = openingHours;
     }
 
     /**
@@ -71,6 +80,25 @@ public class Restaurant {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * Returns the daily opening hours.
+     *
+     * @return the opening hours
+     */
+    public OpeningHours getOpeningHours() {
+        return openingHours;
+    }
+
+    /**
+     * Tells whether the restaurant is open at the given time.
+     *
+     * @param time the time to check; must not be null
+     * @return {@code true} if the restaurant is open at that time
+     */
+    public boolean isOpenAt(LocalTime time) {
+        return openingHours.isOpenAt(time);
     }
 
     /**
