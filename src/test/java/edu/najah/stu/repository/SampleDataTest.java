@@ -1,5 +1,6 @@
 package edu.najah.stu.repository;
 
+import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Restaurant;
 import org.junit.jupiter.api.Test;
 
@@ -18,8 +19,8 @@ class SampleDataTest {
     private final List<Restaurant> restaurants = SampleData.createRepository().findAll();
 
     @Test
-    void containsSixRestaurants() {
-        assertEquals(6, restaurants.size());
+    void containsTenRestaurants() {
+        assertEquals(10, restaurants.size());
     }
 
     @Test
@@ -45,5 +46,17 @@ class SampleDataTest {
         InMemoryRestaurantRepository second = SampleData.createRepository();
 
         assertNotSame(first, second);
+    }
+
+    @Test
+    void everyRestaurantIsInNablus() {
+        restaurants.forEach(restaurant -> assertTrue(
+                restaurant.getLocation().distanceKmTo(Landmark.OLD_CAMPUS.getLocation()) < 10,
+                restaurant.getName() + " is too far from Nablus"));
+    }
+
+    @Test
+    void idsComeFromOpenStreetMap() {
+        restaurants.forEach(restaurant -> assertTrue(restaurant.getId().startsWith("osm-")));
     }
 }

@@ -1,13 +1,17 @@
 package edu.najah.stu.service;
 
+import edu.najah.stu.domain.Cuisine;
+import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.repository.RestaurantRepository;
 
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * Lists the restaurants a customer can order from right now.
+ * Lists the restaurants a customer can order from right now, and finds
+ * the open ones near a given place.
  *
  * <p>The current time comes from a {@link TimeProvider}, so tests can fix
  * the clock at any moment of the day.</p>
@@ -16,6 +20,11 @@ public class RestaurantService {
 
     /** A restaurant closing in fewer minutes than this is "closing soon". */
     static final long CLOSING_SOON_MINUTES = 30;
+
+    /** Average walking speed used to estimate walking time. */
+    static final double WALKING_SPEED_KMH = 5.0;
+
+    private static final double MINUTES_PER_HOUR = 60.0;
 
     private final RestaurantRepository restaurantRepository;
     private final TimeProvider timeProvider;
@@ -59,7 +68,62 @@ public class RestaurantService {
         if (restaurant == null) {
             throw new IllegalArgumentException("Restaurant must not be null");
         }
+        return closesSoon(restaurant, currentTime());
+    }
+
+    /**
+     * Finds the open restaurants within a radius of a place, nearest first.
+     * Restaurants at the same distance are ordered by name.
+     *
+     * @param from     the place to search from; must not be null
+     * @param radiusKm the search radius in kilometres; must be greater than zero
+     * @return the open restaurants within the radius; empty if there are none
+     * @throws IllegalArgumentException if {@code from} is null or the radius is not positive
+     */
+    public List<NearbyRestaurant> findNearby(Location from, double radiusKm) {
+        return search(from, radiusKm, null);
+    }
+
+    /**
+     * Finds the open restaurants of one cuisine within a radius of a place, nearest first.
+     *
+     * @param from     the place to search from; must not be null
+     * @param radiusKm the search radius in kilometres; must be greater than zero
+     * @param cuisine  the only cuisine to include; must not be null
+     * @return the matching open restaurants within the radius; empty if there are none
+     * @throws IllegalArgumentException if an argument is null or the radius is not positive
+     */
+    public List<NearbyRestaurant> findNearby(Location from, double radiusKm, Cuisine cuisine) {
+        if (cuisine == null) {
+            throw new IllegalArgumentException("Cuisine must not be null");
+        }
+        return search(from, radiusKm, cuisine);
+    }
+
+    private List<NearbyRestaurant> search(Location from, double radiusKm, Cuisine cuisine) {
+        if (from == null) {
+            throw new IllegalArgumentException("Search location must not be null");
+        }
+        if (!(radiusKm > 0) || Double.isInfinite(radiusKm)) {
+            throw new IllegalArgumentException("Radius must be a positive number: " + radiusKm);
+        }
         LocalTime now = currentTime();
+        return restaurantRepository.findAll().stream()
+                .filter(restaurant -> cuisine == null || restaurant.getCuisine() == cuisine)
+                .filter(restaurant -> restaurant.isOpenAt(now))
+                .map(restaurant -> toResult(restaurant, from.distanceKmTo(restaurant.getLocation()), now))
+                .filter(result -> result.distanceKm() <= radiusKm)
+                .sorted(Comparator.comparingDouble(NearbyRestaurant::distanceKm)
+                        .thenComparing(result -> result.restaurant().getName()))
+                .toList();
+    }
+
+    private NearbyRestaurant toResult(Restaurant restaurant, double distanceKm, LocalTime now) {
+        long walkingMinutes = Math.max(1, Math.round(distanceKm / WALKING_SPEED_KMH * MINUTES_PER_HOUR));
+        return new NearbyRestaurant(restaurant, distanceKm, walkingMinutes, closesSoon(restaurant, now));
+    }
+
+    private boolean closesSoon(Restaurant restaurant, LocalTime now) {
         return restaurant.isOpenAt(now)
                 && restaurant.getOpeningHours().minutesUntilClose(now) < CLOSING_SOON_MINUTES;
     }

@@ -8,7 +8,8 @@ import java.util.List;
  * Represents a restaurant in the food delivery system.
  *
  * <p>A restaurant has a unique id, a display name, daily
- * {@link OpeningHours} and a menu of {@link MenuItem}s. The menu can only be changed through
+ * {@link OpeningHours}, a {@link Location}, a {@link Cuisine} and a menu
+ * of {@link MenuItem}s. The menu can only be changed through
  * {@link #addMenuItem(MenuItem)}, which rejects duplicate items.</p>
  */
 public class Restaurant {
@@ -22,6 +23,12 @@ public class Restaurant {
     /** The daily hours in which the restaurant accepts orders. */
     private final OpeningHours openingHours;
 
+    /** Where the restaurant is. */
+    private final Location location;
+
+    /** The main kind of food the restaurant serves. */
+    private final Cuisine cuisine;
+
     /** The items offered by this restaurant, available or not. */
     private final List<MenuItem> menuItems = new ArrayList<>();
 
@@ -31,9 +38,12 @@ public class Restaurant {
      * @param id           unique identifier; must not be null or blank
      * @param name         display name; must not be null or blank
      * @param openingHours daily opening hours; must not be null
-     * @throws IllegalArgumentException if the id, name or opening hours are missing
+     * @param location     where the restaurant is; must not be null
+     * @param cuisine      main kind of food served; must not be null
+     * @throws IllegalArgumentException if any argument is missing
      */
-    public Restaurant(String id, String name, OpeningHours openingHours) {
+    public Restaurant(String id, String name, OpeningHours openingHours,
+                      Location location, Cuisine cuisine) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Restaurant id must not be empty");
         }
@@ -45,7 +55,12 @@ public class Restaurant {
         }
         this.id = id;
         this.name = name;
+        if (location == null || cuisine == null) {
+            throw new IllegalArgumentException("Location and cuisine must not be null");
+        }
         this.openingHours = openingHours;
+        this.location = location;
+        this.cuisine = cuisine;
     }
 
     /**
@@ -89,6 +104,24 @@ public class Restaurant {
      */
     public OpeningHours getOpeningHours() {
         return openingHours;
+    }
+
+    /**
+     * Returns where the restaurant is.
+     *
+     * @return the restaurant location
+     */
+    public Location getLocation() {
+        return location;
+    }
+
+    /**
+     * Returns the main kind of food served.
+     *
+     * @return the cuisine
+     */
+    public Cuisine getCuisine() {
+        return cuisine;
     }
 
     /**
