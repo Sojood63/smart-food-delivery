@@ -52,8 +52,9 @@ class RestaurantServiceScheduleTest {
         return new Restaurant(id, name, HoursParser.parse(hours, HoursSource.OSM), location, Cuisine.OTHER);
     }
 
-    private void clockAt(int day, int hour, int minute) {
-        when(timeProvider.now()).thenReturn(LocalDateTime.of(2026, 10, day, hour, minute));
+    /** Sets the clock to a day of October 2026 (the 29th is a Thursday, the 30th a Friday). */
+    private void clockAt(int dayOfOctober, int hour, int minute) {
+        when(timeProvider.now()).thenReturn(LocalDateTime.of(2026, 10, dayOfOctober, hour, minute));
     }
 
     private static List<String> names(List<NearbyRestaurant> results) {

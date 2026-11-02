@@ -3,13 +3,14 @@ package edu.najah.stu.domain;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 /**
  * Reads opening hours written in the common OpenStreetMap style.
@@ -27,12 +28,13 @@ import java.util.stream.IntStream;
  */
 public final class HoursParser {
 
-    private static final List<String> DAY_CODES = List.of("mo", "tu", "we", "th", "fr", "sa", "su");
-    private static final String DAY = "(mo|tu|we|th|fr|sa|su)";
-    private static final Pattern DAY_PART = Pattern.compile(DAY + "(?:-" + DAY + ")?");
-    private static final Pattern RULE = Pattern.compile(
-            "(?:((?:" + DAY + "(?:-" + DAY + ")?)(?:," + DAY + "(?:-" + DAY + ")?)*)\\s+)?"
-                    + "(off|(\\d{1,2}:\\d{2})-(\\d{1,2}:\\d{2}))");
+    private static final Map<String, DayOfWeek> DAY_CODES = Map.of(
+            "mo", DayOfWeek.MONDAY, "tu", DayOfWeek.TUESDAY, "we", DayOfWeek.WEDNESDAY,
+            "th", DayOfWeek.THURSDAY, "fr", DayOfWeek.FRIDAY, "sa", DayOfWeek.SATURDAY,
+            "su", DayOfWeek.SUNDAY);
+    private static final Pattern TIME_RANGE = Pattern.compile("(\\d{1,2}:\\d{2})-(\\d{1,2}:\\d{2})");
+    private static final String CLOSED = "off";
+    private static final int DAYS_PER_WEEK = 7;
 
     private HoursParser() {
     }
@@ -61,35 +63,67 @@ public final class HoursParser {
         return WeeklySchedule.of(week, source);
     }
 
+    /**
+     * Applies one rule such as {@code "Mo-Th,Sa-Su 10:00-23:00"} or {@code "Fr off"}.
+     *
+     * @return {@code false} if the rule is not understood
+     */
     private static boolean applyRule(String rule, Map<DayOfWeek, OpeningHours> week) {
-        Matcher matcher = RULE.matcher(rule);
-        if (!matcher.matches()) {
+        String[] parts = rule.split("\\s+");
+        if (parts.length > 2 || parts[0].isEmpty()) {
             return false;
         }
-        List<DayOfWeek> days = matcher.group(1) == null ? List.of(DayOfWeek.values()) : days(matcher.group(1));
-        if (matcher.group(6).equals("off")) {
+        List<DayOfWeek> days = parts.length == 1 ? List.of(DayOfWeek.values()) : parseDays(parts[0]);
+        if (days.isEmpty()) {
+            return false;
+        }
+        String hoursText = parts[parts.length - 1];
+        if (hoursText.equals(CLOSED)) {
             days.forEach(week::remove);
             return true;
         }
-        try {
-            OpeningHours hours = new OpeningHours(time(matcher.group(7)), time(matcher.group(8)));
-            days.forEach(day -> week.put(day, hours));
-            return true;
-        } catch (DateTimeParseException | IllegalArgumentException e) {
-            return false;
-        }
+        Optional<OpeningHours> hours = parseHours(hoursText);
+        hours.ifPresent(value -> days.forEach(day -> week.put(day, value)));
+        return hours.isPresent();
     }
 
-    private static List<DayOfWeek> days(String daysText) {
-        return DAY_PART.matcher(daysText).results()
-                .flatMap(part -> {
-                    int from = DAY_CODES.indexOf(part.group(1));
-                    int to = part.group(2) == null ? from : DAY_CODES.indexOf(part.group(2));
-                    int count = Math.floorMod(to - from, DAY_CODES.size()) + 1;
-                    return IntStream.range(0, count)
-                            .mapToObj(offset -> DayOfWeek.of((from + offset) % DAY_CODES.size() + 1));
-                })
-                .toList();
+    /**
+     * Parses a list of days such as {@code "mo-th,sa-su"}.
+     *
+     * @return the days, or an empty list if any part is not a valid day or range
+     */
+    private static List<DayOfWeek> parseDays(String daysText) {
+        List<DayOfWeek> days = new ArrayList<>();
+        for (String part : daysText.split(",")) {
+            String[] ends = part.split("-");
+            DayOfWeek from = DAY_CODES.get(ends[0]);
+            DayOfWeek to = ends.length == 2 ? DAY_CODES.get(ends[1]) : from;
+            if (ends.length > 2 || from == null || to == null) {
+                return List.of();
+            }
+            int count = Math.floorMod(to.getValue() - from.getValue(), DAYS_PER_WEEK) + 1;
+            for (int offset = 0; offset < count; offset++) {
+                days.add(from.plus(offset));
+            }
+        }
+        return days;
+    }
+
+    /**
+     * Parses a time range such as {@code "10:00-23:00"}.
+     *
+     * @return the hours, or empty if the text is not a valid range
+     */
+    private static Optional<OpeningHours> parseHours(String hoursText) {
+        Matcher matcher = TIME_RANGE.matcher(hoursText);
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new OpeningHours(time(matcher.group(1)), time(matcher.group(2))));
+        } catch (DateTimeParseException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     private static LocalTime time(String text) {

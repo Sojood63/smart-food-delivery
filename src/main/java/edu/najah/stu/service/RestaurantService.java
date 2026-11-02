@@ -5,7 +5,6 @@ import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.repository.RestaurantRepository;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -112,9 +111,10 @@ public class RestaurantService {
         LocalDateTime now = currentTime();
         return restaurantRepository.findAll().stream()
                 .filter(restaurant -> cuisine == null || restaurant.getCuisine() == cuisine)
-                .filter(restaurant -> restaurant.getLocation().isPresent())
                 .filter(restaurant -> restaurant.isOpenAt(now))
-                .map(restaurant -> toResult(restaurant, from.distanceKmTo(restaurant.getLocation().get()), now))
+                .flatMap(restaurant -> restaurant.getLocation()
+                        .map(location -> toResult(restaurant, from.distanceKmTo(location), now))
+                        .stream())
                 .filter(result -> result.distanceKm() <= radiusKm)
                 .sorted(Comparator.comparingDouble(NearbyRestaurant::distanceKm)
                         .thenComparing(result -> result.restaurant().getName()))
@@ -127,8 +127,9 @@ public class RestaurantService {
     }
 
     private boolean closesSoon(Restaurant restaurant, LocalDateTime now) {
+        LocalDateTime warningLimit = now.plusMinutes(CLOSING_SOON_MINUTES);
         return restaurant.getSchedule().closingTime(now)
-                .map(closing -> Duration.between(now, closing).toMinutes() < CLOSING_SOON_MINUTES)
+                .map(warningLimit::isAfter)
                 .orElse(false);
     }
 

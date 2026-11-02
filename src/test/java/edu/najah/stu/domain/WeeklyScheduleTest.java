@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,10 +34,8 @@ class WeeklyScheduleTest {
     /** Saturday to Thursday 07:00-22:00, closed on Friday (like Pizza Al Najah). */
     private static WeeklySchedule closedOnFriday() {
         Map<DayOfWeek, OpeningHours> week = new EnumMap<>(DayOfWeek.class);
-        for (DayOfWeek day : DayOfWeek.values()) {
-            if (day != DayOfWeek.FRIDAY) {
-                week.put(day, hours("07:00", "22:00"));
-            }
+        for (DayOfWeek day : EnumSet.complementOf(EnumSet.of(DayOfWeek.FRIDAY))) {
+            week.put(day, hours("07:00", "22:00"));
         }
         return WeeklySchedule.of(week, HoursSource.OSM);
     }
