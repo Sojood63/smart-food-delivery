@@ -41,3 +41,5 @@ build/
 ### Project ###
 .idea/
 out/
+### Program data (created when the program runs) ###
+/data/

@@ -1,0 +1,3 @@
+# Real menus collected by the team. Columns: restaurant_id|item_name|price_nis|available
+# restaurant_id comes from restaurants.txt. price_nis like 12 or 12.50. available is yes or no.
+# Restaurants with no lines here simply have no menu yet.
