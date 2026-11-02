@@ -1,5 +1,6 @@
 package edu.najah.stu.repository;
 
+import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.WeeklySchedule;
 
@@ -22,7 +23,7 @@ import java.util.function.Function;
  * Builds restaurants from the team's list and the OpenStreetMap export.
  *
  * <p>Every restaurant comes from the team's list. Its location comes from the
- * linked OpenStreetMap place, if any. Its hours come from the first
+ * linked OpenStreetMap place, if any, and its menu from the team's menu file. Its hours come from the first
  * {@link HoursStrategy} that knows them; by default the team's hours win over
  * the map, the map wins over an estimate, and with no source at all the hours
  * are unknown.</p>
@@ -34,6 +35,9 @@ public class RestaurantImporter {
 
     /** The OpenStreetMap export, bundled with the program. */
     public static final String OSM_FILE = "osm-places.txt";
+
+    /** The team's menus, bundled with the program. */
+    public static final String MENUS_FILE = "menus.txt";
 
     private static final String DATA_FOLDER = "/data/";
 
@@ -73,7 +77,9 @@ public class RestaurantImporter {
                 .map(ManualEntry::fromRow).toList();
         List<OsmPlace> places = readBundled(OSM_FILE, OsmPlace.COLUMNS).stream()
                 .map(OsmPlace::fromRow).toList();
-        return importRestaurants(entries, places);
+        List<MenuRow> menus = readBundled(MENUS_FILE, MenuRow.COLUMNS).stream()
+                .map(MenuRow::fromRow).toList();
+        return importRestaurants(entries, places, menus);
     }
 
     /**
@@ -85,6 +91,21 @@ public class RestaurantImporter {
      * @throws DataFormatException if ids repeat or an entry links to a missing place
      */
     public List<Restaurant> importRestaurants(List<ManualEntry> entries, List<OsmPlace> places) {
+        return importRestaurants(entries, places, List.of());
+    }
+
+    /**
+     * Builds restaurants with their menus from already-read data.
+     *
+     * @param entries the team's entries
+     * @param places  the OpenStreetMap places
+     * @param menus   the team's menu items; item ids are numbered per restaurant
+     * @return one restaurant per entry, in the same order
+     * @throws DataFormatException if ids repeat, an entry links to a missing place,
+     *                             or a menu item belongs to an unknown restaurant
+     */
+    public List<Restaurant> importRestaurants(List<ManualEntry> entries, List<OsmPlace> places,
+                                              List<MenuRow> menus) {
         Map<String, OsmPlace> placesById = indexPlaces(places);
         Set<String> seenIds = new HashSet<>();
         List<Restaurant> restaurants = new ArrayList<>();
@@ -94,7 +115,21 @@ public class RestaurantImporter {
             }
             restaurants.add(toRestaurant(new ImportCandidate(entry, linkedPlace(entry, placesById))));
         }
+        addMenus(restaurants, menus);
         return restaurants;
+    }
+
+    private static void addMenus(List<Restaurant> restaurants, List<MenuRow> menus) {
+        Map<String, Restaurant> byId = new HashMap<>();
+        restaurants.forEach(restaurant -> byId.put(restaurant.getId(), restaurant));
+        for (MenuRow row : menus) {
+            Restaurant restaurant = byId.get(row.restaurantId());
+            if (restaurant == null) {
+                throw new DataFormatException(MENUS_FILE, "unknown restaurant id " + row.restaurantId());
+            }
+            String itemId = restaurant.getId() + "-" + (restaurant.getMenuItems().size() + 1);
+            restaurant.addMenuItem(new MenuItem(itemId, row.itemName(), row.price(), row.available()));
+        }
     }
 
     private Restaurant toRestaurant(ImportCandidate candidate) {
