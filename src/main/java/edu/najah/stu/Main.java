@@ -37,6 +37,11 @@ public class Main {
             }
         }
         System.out.println();
+        System.out.println("Also open now (location not known yet):");
+        restaurantService.getOpenRestaurants().stream()
+                .filter(restaurant -> restaurant.getLocation().isEmpty())
+                .forEach(restaurant -> System.out.println(" * " + restaurant.getName()));
+        System.out.println();
         System.out.println("Map data (c) OpenStreetMap contributors");
     }
 }

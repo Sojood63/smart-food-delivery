@@ -1,9 +1,11 @@
 package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Cuisine;
+import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.WeeklySchedule;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,8 @@ class RestaurantServiceTest {
 
     private static Restaurant restaurant(String id, String name, String opensAt, String closesAt) {
         OpeningHours hours = new OpeningHours(LocalTime.parse(opensAt), LocalTime.parse(closesAt));
-        return new Restaurant(id, name, hours, new Location(32.2189, 35.2400), Cuisine.OTHER);
+        return new Restaurant(id, name, WeeklySchedule.everyDay(hours, HoursSource.MANUAL),
+                new Location(32.2189, 35.2400), Cuisine.OTHER);
     }
 
     private void clockAt(String time) {

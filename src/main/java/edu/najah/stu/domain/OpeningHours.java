@@ -90,7 +90,12 @@ public final class OpeningHours {
         return closesAt;
     }
 
-    private boolean closesOvernight() {
+    /**
+     * Tells whether the hours run past midnight, for example 18:00 to 02:00.
+     *
+     * @return {@code true} if the closing time is earlier than the opening time
+     */
+    public boolean closesOvernight() {
         return closesAt.isBefore(opensAt);
     }
 }

@@ -4,7 +4,7 @@ import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Restaurant;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,8 +19,8 @@ class SampleDataTest {
     private final List<Restaurant> restaurants = SampleData.createRepository().findAll();
 
     @Test
-    void containsTenRestaurants() {
-        assertEquals(10, restaurants.size());
+    void containsThirteenRestaurants() {
+        assertEquals(13, restaurants.size());
     }
 
     @Test
@@ -37,7 +37,8 @@ class SampleDataTest {
 
     @Test
     void includesAnOvernightRestaurant() {
-        assertTrue(restaurants.stream().anyMatch(restaurant -> restaurant.isOpenAt(LocalTime.of(0, 30))));
+        LocalDateTime tuesdayAfterMidnight = LocalDateTime.of(2026, 11, 3, 0, 30);
+        assertTrue(restaurants.stream().anyMatch(restaurant -> restaurant.isOpenAt(tuesdayAfterMidnight)));
     }
 
     @Test
@@ -50,13 +51,29 @@ class SampleDataTest {
 
     @Test
     void everyRestaurantIsInNablus() {
-        restaurants.forEach(restaurant -> assertTrue(
-                restaurant.getLocation().distanceKmTo(Landmark.OLD_CAMPUS.getLocation()) < 10,
-                restaurant.getName() + " is too far from Nablus"));
+        restaurants.forEach(restaurant -> restaurant.getLocation().ifPresent(location -> assertTrue(
+                location.distanceKmTo(Landmark.OLD_CAMPUS.getLocation()) < 10,
+                restaurant.getName() + " is too far from Nablus")));
     }
 
     @Test
-    void idsComeFromOpenStreetMap() {
-        restaurants.forEach(restaurant -> assertTrue(restaurant.getId().startsWith("osm-")));
+    void idsShowWhereTheDataCameFrom() {
+        restaurants.forEach(restaurant -> assertTrue(
+                restaurant.getId().startsWith("osm-") || restaurant.getId().startsWith("manual-")));
+    }
+
+    @Test
+    void includesARestaurantWithoutLocation() {
+        assertTrue(restaurants.stream().anyMatch(restaurant -> restaurant.getLocation().isEmpty()));
+    }
+
+    @Test
+    void pizzaAlNajahIsClosedOnFriday() {
+        Restaurant pizzaAlNajah = restaurants.stream()
+                .filter(restaurant -> restaurant.getName().equals("Pizza Al Najah"))
+                .findFirst().orElseThrow();
+
+        assertFalse(pizzaAlNajah.isOpenAt(LocalDateTime.of(2026, 10, 30, 12, 0)));
+        assertTrue(pizzaAlNajah.isOpenAt(LocalDateTime.of(2026, 10, 31, 12, 0)));
     }
 }
