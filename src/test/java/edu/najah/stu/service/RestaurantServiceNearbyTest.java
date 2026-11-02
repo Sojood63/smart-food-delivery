@@ -1,9 +1,11 @@
 package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Cuisine;
+import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.WeeklySchedule;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +50,8 @@ class RestaurantServiceNearbyTest {
     }
 
     private Restaurant save(String id, String name, double kmAway, Cuisine cuisine, OpeningHours hours) {
-        Restaurant restaurant = new Restaurant(id, name, hours, kmNorth(kmAway), cuisine);
+        Restaurant restaurant = new Restaurant(id, name, WeeklySchedule.everyDay(hours, HoursSource.MANUAL),
+                kmNorth(kmAway), cuisine);
         repository.save(restaurant);
         return restaurant;
     }
@@ -90,7 +93,7 @@ class RestaurantServiceNearbyTest {
     @Test
     void includesRestaurantExactlyOnTheRadius() {
         Restaurant edge = save("R1", "Edge", 1.0, Cuisine.PIZZA);
-        double exactRadius = FROM.distanceKmTo(edge.getLocation());
+        double exactRadius = FROM.distanceKmTo(edge.getLocation().orElseThrow());
         clockAt(12, 0);
 
         assertEquals(List.of("Edge"), names(service.findNearby(FROM, exactRadius)));
@@ -195,5 +198,16 @@ class RestaurantServiceNearbyTest {
         clockAt(12, 0);
 
         assertFalse(service.findNearby(FROM, 2).get(0).closingSoon());
+    }
+
+    // L2
+    @Test
+    void leavesOutRestaurantsWithoutLocation() {
+        save("R1", "Known place", 0.5, Cuisine.PIZZA);
+        repository.save(new Restaurant("R2", "Unknown place",
+                WeeklySchedule.everyDay(DAY_HOURS, HoursSource.MANUAL), null, Cuisine.PIZZA));
+        clockAt(12, 0);
+
+        assertEquals(List.of("Known place"), names(service.findNearby(FROM, 2)));
     }
 }

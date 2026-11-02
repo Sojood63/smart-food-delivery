@@ -5,7 +5,7 @@ import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.repository.RestaurantRepository;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -13,8 +13,8 @@ import java.util.List;
  * Lists the restaurants a customer can order from right now, and finds
  * the open ones near a given place.
  *
- * <p>The current time comes from a {@link TimeProvider}, so tests can fix
- * the clock at any moment of the day.</p>
+ * <p>The current date and time come from a {@link TimeProvider}, so tests can
+ * fix the clock at any moment of any day of the week.</p>
  */
 public class RestaurantService {
 
@@ -51,7 +51,7 @@ public class RestaurantService {
      * @return the open restaurants; empty if none is open
      */
     public List<Restaurant> getOpenRestaurants() {
-        LocalTime now = currentTime();
+        LocalDateTime now = currentTime();
         return restaurantRepository.findAll().stream()
                 .filter(restaurant -> restaurant.isOpenAt(now))
                 .toList();
@@ -73,7 +73,8 @@ public class RestaurantService {
 
     /**
      * Finds the open restaurants within a radius of a place, nearest first.
-     * Restaurants at the same distance are ordered by name.
+     * Restaurants at the same distance are ordered by name, and restaurants
+     * without a known location are left out.
      *
      * @param from     the place to search from; must not be null
      * @param radiusKm the search radius in kilometres; must be greater than zero
@@ -107,28 +108,32 @@ public class RestaurantService {
         if (!(radiusKm > 0) || Double.isInfinite(radiusKm)) {
             throw new IllegalArgumentException("Radius must be a positive number: " + radiusKm);
         }
-        LocalTime now = currentTime();
+        LocalDateTime now = currentTime();
         return restaurantRepository.findAll().stream()
                 .filter(restaurant -> cuisine == null || restaurant.getCuisine() == cuisine)
                 .filter(restaurant -> restaurant.isOpenAt(now))
-                .map(restaurant -> toResult(restaurant, from.distanceKmTo(restaurant.getLocation()), now))
+                .flatMap(restaurant -> restaurant.getLocation()
+                        .map(location -> toResult(restaurant, from.distanceKmTo(location), now))
+                        .stream())
                 .filter(result -> result.distanceKm() <= radiusKm)
                 .sorted(Comparator.comparingDouble(NearbyRestaurant::distanceKm)
                         .thenComparing(result -> result.restaurant().getName()))
                 .toList();
     }
 
-    private NearbyRestaurant toResult(Restaurant restaurant, double distanceKm, LocalTime now) {
+    private NearbyRestaurant toResult(Restaurant restaurant, double distanceKm, LocalDateTime now) {
         long walkingMinutes = Math.max(1, Math.round(distanceKm / WALKING_SPEED_KMH * MINUTES_PER_HOUR));
         return new NearbyRestaurant(restaurant, distanceKm, walkingMinutes, closesSoon(restaurant, now));
     }
 
-    private boolean closesSoon(Restaurant restaurant, LocalTime now) {
-        return restaurant.isOpenAt(now)
-                && restaurant.getOpeningHours().minutesUntilClose(now) < CLOSING_SOON_MINUTES;
+    private boolean closesSoon(Restaurant restaurant, LocalDateTime now) {
+        LocalDateTime warningLimit = now.plusMinutes(CLOSING_SOON_MINUTES);
+        return restaurant.getSchedule().closingTime(now)
+                .map(warningLimit::isAfter)
+                .orElse(false);
     }
 
-    private LocalTime currentTime() {
-        return timeProvider.now().toLocalTime();
+    private LocalDateTime currentTime() {
+        return timeProvider.now();
     }
 }

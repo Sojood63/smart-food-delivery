@@ -1,15 +1,17 @@
 package edu.najah.stu.domain;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Represents a restaurant in the food delivery system.
  *
- * <p>A restaurant has a unique id, a display name, daily
- * {@link OpeningHours}, a {@link Location}, a {@link Cuisine} and a menu
- * of {@link MenuItem}s. The menu can only be changed through
+ * <p>A restaurant has a unique id, a display name, a
+ * {@link WeeklySchedule}, an optional {@link Location}, a {@link Cuisine}
+ * and a menu of {@link MenuItem}s. A restaurant without a known location
+ * can still be listed as open, but cannot be found by distance. The menu can only be changed through
  * {@link #addMenuItem(MenuItem)}, which rejects duplicate items.</p>
  */
 public class Restaurant {
@@ -20,10 +22,10 @@ public class Restaurant {
     /** Display name of the restaurant. */
     private final String name;
 
-    /** The daily hours in which the restaurant accepts orders. */
-    private final OpeningHours openingHours;
+    /** The weekly hours in which the restaurant accepts orders. */
+    private final WeeklySchedule schedule;
 
-    /** Where the restaurant is. */
+    /** Where the restaurant is; null when not known yet. */
     private final Location location;
 
     /** The main kind of food the restaurant serves. */
@@ -35,14 +37,14 @@ public class Restaurant {
     /**
      * Creates a restaurant with an empty menu.
      *
-     * @param id           unique identifier; must not be null or blank
-     * @param name         display name; must not be null or blank
-     * @param openingHours daily opening hours; must not be null
-     * @param location     where the restaurant is; must not be null
-     * @param cuisine      main kind of food served; must not be null
-     * @throws IllegalArgumentException if any argument is missing
+     * @param id       unique identifier; must not be null or blank
+     * @param name     display name; must not be null or blank
+     * @param schedule weekly opening hours; must not be null
+     * @param location where the restaurant is; null if not known yet
+     * @param cuisine  main kind of food served; must not be null
+     * @throws IllegalArgumentException if the id, name, schedule or cuisine is missing
      */
-    public Restaurant(String id, String name, OpeningHours openingHours,
+    public Restaurant(String id, String name, WeeklySchedule schedule,
                       Location location, Cuisine cuisine) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Restaurant id must not be empty");
@@ -50,15 +52,15 @@ public class Restaurant {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Restaurant name must not be empty");
         }
-        if (openingHours == null) {
-            throw new IllegalArgumentException("Opening hours must not be null");
+        if (schedule == null) {
+            throw new IllegalArgumentException("Schedule must not be null");
         }
         this.id = id;
         this.name = name;
-        if (location == null || cuisine == null) {
-            throw new IllegalArgumentException("Location and cuisine must not be null");
+        if (cuisine == null) {
+            throw new IllegalArgumentException("Cuisine must not be null");
         }
-        this.openingHours = openingHours;
+        this.schedule = schedule;
         this.location = location;
         this.cuisine = cuisine;
     }
@@ -98,21 +100,21 @@ public class Restaurant {
     }
 
     /**
-     * Returns the daily opening hours.
+     * Returns the weekly opening hours.
      *
-     * @return the opening hours
+     * @return the schedule
      */
-    public OpeningHours getOpeningHours() {
-        return openingHours;
+    public WeeklySchedule getSchedule() {
+        return schedule;
     }
 
     /**
      * Returns where the restaurant is.
      *
-     * @return the restaurant location
+     * @return the location, or empty if it is not known yet
      */
-    public Location getLocation() {
-        return location;
+    public Optional<Location> getLocation() {
+        return Optional.ofNullable(location);
     }
 
     /**
@@ -125,13 +127,13 @@ public class Restaurant {
     }
 
     /**
-     * Tells whether the restaurant is open at the given time.
+     * Tells whether the restaurant is open at the given moment.
      *
-     * @param time the time to check; must not be null
-     * @return {@code true} if the restaurant is open at that time
+     * @param moment the date and time to check; must not be null
+     * @return {@code true} if the restaurant is open at that moment
      */
-    public boolean isOpenAt(LocalTime time) {
-        return openingHours.isOpenAt(time);
+    public boolean isOpenAt(LocalDateTime moment) {
+        return schedule.isOpenAt(moment);
     }
 
     /**

@@ -1,5 +1,6 @@
 package edu.najah.stu.presentation;
 
+import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.service.NearbyRestaurant;
 
 import java.util.Locale;
@@ -7,7 +8,8 @@ import java.util.Locale;
 /**
  * Turns nearby-restaurant results into one-line text for the console.
  *
- * <p>Example: {@code Pizza Time | Pizza | ~350 m | ~5 min walk | closing soon!}</p>
+ * <p>Example: {@code Pizza Time | Pizza | ~350 m | ~5 min walk | closing soon!}.
+ * Restaurants whose hours are only estimated are marked {@code (estimated hours)}.</p>
  */
 public final class RestaurantFormatter {
 
@@ -31,6 +33,9 @@ public final class RestaurantFormatter {
                 + " | " + result.restaurant().getCuisine().getDisplayName()
                 + " | ~" + formatDistance(result.distanceKm())
                 + " | ~" + result.walkingMinutes() + " min walk";
+        if (result.restaurant().getSchedule().getSource() == HoursSource.ESTIMATED) {
+            line += " | (estimated hours)";
+        }
         return result.closingSoon() ? line + " | closing soon!" : line;
     }
 

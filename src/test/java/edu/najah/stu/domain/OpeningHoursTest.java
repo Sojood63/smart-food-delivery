@@ -117,4 +117,10 @@ class OpeningHoursTest {
         assertEquals(LocalTime.parse("09:00"), dayHours.getOpensAt());
         assertEquals(LocalTime.parse("22:00"), dayHours.getClosesAt());
     }
+
+    @Test
+    void knowsWhetherHoursRunPastMidnight() {
+        assertTrue(nightHours.closesOvernight());
+        assertFalse(dayHours.closesOvernight());
+    }
 }

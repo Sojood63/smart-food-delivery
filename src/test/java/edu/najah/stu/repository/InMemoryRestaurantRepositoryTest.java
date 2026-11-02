@@ -1,9 +1,11 @@
 package edu.najah.stu.repository;
 
 import edu.najah.stu.domain.Cuisine;
+import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.WeeklySchedule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class InMemoryRestaurantRepositoryTest {
 
     private static final OpeningHours HOURS = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(22, 0));
+    private static final WeeklySchedule SCHEDULE = WeeklySchedule.everyDay(HOURS, HoursSource.MANUAL);
     private static final Location LOCATION = new Location(32.2189, 35.2400);
 
     private InMemoryRestaurantRepository repository;
@@ -27,7 +30,7 @@ class InMemoryRestaurantRepositoryTest {
 
     @Test
     void findsSavedRestaurant() {
-        Restaurant restaurant = new Restaurant("R1", "Abu Salem", HOURS, LOCATION, Cuisine.OTHER);
+        Restaurant restaurant = new Restaurant("R1", "Abu Salem", SCHEDULE, LOCATION, Cuisine.OTHER);
         repository.save(restaurant);
 
         Optional<Restaurant> found = repository.findById("R1");
@@ -43,8 +46,8 @@ class InMemoryRestaurantRepositoryTest {
 
     @Test
     void savingSameIdReplacesOldRestaurant() {
-        repository.save(new Restaurant("R1", "Old Name", HOURS, LOCATION, Cuisine.OTHER));
-        Restaurant updated = new Restaurant("R1", "New Name", HOURS, LOCATION, Cuisine.OTHER);
+        repository.save(new Restaurant("R1", "Old Name", SCHEDULE, LOCATION, Cuisine.OTHER));
+        Restaurant updated = new Restaurant("R1", "New Name", SCHEDULE, LOCATION, Cuisine.OTHER);
 
         repository.save(updated);
 
@@ -58,8 +61,8 @@ class InMemoryRestaurantRepositoryTest {
 
     @Test
     void findAllReturnsRestaurantsInSavingOrder() {
-        Restaurant first = new Restaurant("R2", "First", HOURS, LOCATION, Cuisine.OTHER);
-        Restaurant second = new Restaurant("R1", "Second", HOURS, LOCATION, Cuisine.OTHER);
+        Restaurant first = new Restaurant("R2", "First", SCHEDULE, LOCATION, Cuisine.OTHER);
+        Restaurant second = new Restaurant("R1", "Second", SCHEDULE, LOCATION, Cuisine.OTHER);
         repository.save(first);
         repository.save(second);
 
@@ -74,7 +77,7 @@ class InMemoryRestaurantRepositoryTest {
     @Test
     void findAllCannotBeModifiedFromOutside() {
         List<Restaurant> all = repository.findAll();
-        Restaurant restaurant = new Restaurant("R1", "Abu Salem", HOURS, LOCATION, Cuisine.OTHER);
+        Restaurant restaurant = new Restaurant("R1", "Abu Salem", SCHEDULE, LOCATION, Cuisine.OTHER);
 
         assertThrows(UnsupportedOperationException.class, () -> all.add(restaurant));
     }

@@ -2,9 +2,11 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Cuisine;
+import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.WeeklySchedule;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,17 +23,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class MenuServiceTest {
 
     private static final OpeningHours HOURS = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(22, 0));
+    private static final WeeklySchedule SCHEDULE = WeeklySchedule.everyDay(HOURS, HoursSource.MANUAL);
     private static final Location LOCATION = new Location(32.2189, 35.2400);
 
-    private InMemoryRestaurantRepository repository;
     private MenuService menuService;
     private Restaurant restaurant;
 
     @BeforeEach
     void setUp() {
-        repository = new InMemoryRestaurantRepository();
+        InMemoryRestaurantRepository repository = new InMemoryRestaurantRepository();
         menuService = new MenuService(repository);
-        restaurant = new Restaurant("R1", "Abu Salem", HOURS, LOCATION, Cuisine.OTHER);
+        restaurant = new Restaurant("R1", "Abu Salem", SCHEDULE, LOCATION, Cuisine.OTHER);
         repository.save(restaurant);
     }
 
