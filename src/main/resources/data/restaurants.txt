@@ -1,0 +1,70 @@
+# Restaurants collected by the team (source: team spreadsheet, Nov 2026).
+# Columns: id|name|cuisine|hours|osm_id|note
+# hours: OpenStreetMap style, e.g. "Mo-Th,Sa-Su 10:00-23:00; Fr 12:00-23:00". Empty = not known.
+# osm_id: the matching OpenStreetMap node (gives the location). Empty = location not known yet.
+manual-01|W Restaurant|OTHER|Mo-Th,Sa-Su 10:00-23:00; Fr 12:00-23:00||
+manual-02|Ward Restaurant|CAFE|Mo-Th,Sa-Su 09:00-23:59; Fr 12:00-23:55|4442702190|
+manual-03|Orgada|BURGER|Mo-Th,Sa-Su 10:00-23:59; Fr 12:00-23:59|7088897185|
+manual-04|Jaltah|BURGER|Mo-Th,Sa-Su 11:30-01:00; Fr 12:30-02:00|9897934617|
+manual-05|FIRE Shawarma|SHAWARMA|||"Always open" in spreadsheet - hours not known
+manual-06|Nafas|CAFE|Mo-Th,Sa-Su 09:00-23:00; Fr off||
+manual-07|Solitaire|CAFE|Mo-Th,Sa-Su 09:00-00:00; Fr 12:00-23:55||
+manual-08|Abusair Pastries|SWEETS||6381099710|"Always open" in spreadsheet - hours not known
+manual-09|Bawabat Albaik Sweets|SWEETS|Mo-Su 09:00-23:00||
+manual-10|Maramia Nablus|CAFE|Mo-Su 09:00-00:00||
+manual-11|Abu Salha Sweets|SWEETS|||"Always open" in spreadsheet - hours not known
+manual-12|Al Titi|SWEETS|||"Always open" in spreadsheet - hours not known
+manual-13|Ekleel Alward|SWEETS|||"Always open" in spreadsheet - hours not known
+manual-14|Attawfeeq Sweets|SWEETS||433076235|"Always open" in spreadsheet - hours not known
+manual-15|Ghuroub Restaurant|OTHER|Mo-Su 09:00-23:45||
+manual-16|Mandalina|SWEETS|Mo-Su 10:00-23:59||
+manual-17|Vienna Restaurant|OTHER|Mo-Th,Sa-Su 10:00-23:59; Fr 12:00-23:59|14116383475|
+manual-18|Fradis Restaurant|OTHER|Mo-Su 11:55-23:30||
+manual-19|Restaurant & Cafe 360|CAFE|||"Always open" in spreadsheet - hours not known
+manual-20|Atteca Restaurant & Caffe (أتيكا)|CAFE|Mo-Th,Sa-Su 08:00-00:00; Fr 18:00-00:00||
+manual-21|Abu Asfoura Restaurant|GRILL|Mo-Su 12:00-00:00||
+manual-22|Sard Chocolate|SWEETS|||"Always open" in spreadsheet - hours not known
+manual-23|Fiction Board Games Cafe|CAFE|Mo-Th,Sa-Su 09:30-00:30; Fr 16:30-00:30||
+manual-24|Shawerman|SHAWARMA|||"Always open" in spreadsheet - hours not known
+manual-25|Mono Pizza|PIZZA|Mo-Th,Sa-Su 09:00-01:00; Fr 11:00-01:00||
+manual-26|Pizza TIME|PIZZA|Mo-Th,Sa-Su 09:00-00:00; Fr 12:00-23:59|4939629521|
+manual-27|Kan Ya Makan Restaurant|PALESTINIAN|Mo-Th,Sa-Su 09:00-03:00; Fr 11:00-00:30|433076399|closing 3:00 could be 03:00 or 15:00
+manual-28|Shisha & Manousheh|CAFE|Mo-Fr,Su 09:00-23:00; Sa 08:00-23:00||
+manual-29|Berlin Restaurant|PIZZA|Mo-Su 10:00-23:30|6484742987|
+manual-30|1948 Restaurant|OTHER|Mo-Su 09:00-01:00|13422150401|
+manual-31|Mr. Ezz Restaurant|OTHER|Mo-Su 06:00-01:00||
+manual-32|Alsaraya Sweets– Rafidia|SWEETS|Mo-Su 09:00-23:00||
+manual-33|Vanilla|SWEETS|Mo-Th,Sa-Su 06:30-00:00; Fr 13:30-00:00||
+manual-34|90s Burger|BURGER|Mo-Th,Sa-Su 09:00-23:00; Fr 17:00-23:55|5604978024|
+manual-35|Burger Space|BURGER|Mo-Th,Sa-Su 10:00-00:00; Fr 12:00-00:00||
+manual-36|Hyper Burger|BURGER|Mo-Th,Sa-Su 10:00-23:59; Fr 12:00-23:59||
+manual-37|Pardo Cafe|CAFE|||"Always open" in spreadsheet - hours not known
+manual-38|Amigos Cafe|CAFE|||"Always open" in spreadsheet - hours not known
+manual-39|Shawerma W Nos|SHAWARMA|Mo-Su 09:00-00:00||
+manual-40|Snack Bistnak|PIZZA||6946231785|"Always open" in spreadsheet - hours not known
+manual-41|KFC – Academy Street|CHICKEN|Mo-Su 10:00-23:59|4381911393|OSM has KFC on Rafedya St - same branch?
+manual-42|Vegas Pizza|PIZZA|Mo-Th,Sa-Su 09:00-23:30; Fr 12:00-23:30||
+manual-43|Shawarma 3 Kefk|SHAWARMA||4741358623|"Always open" in spreadsheet - hours not known
+manual-44|Black Shawarma|SHAWARMA|Mo-Su 08:00-02:00||
+manual-45|عَ الطريق – A' Al-Tareeq|CAFE||4939629822|"Always open" in spreadsheet - hours not known
+manual-46|Gloria Jean's Coffees|CAFE|||"Always open" in spreadsheet - hours not known
+manual-47|CEDARZ|CAFE|Mo-Th,Sa-Su 08:00-00:00; Fr 15:45-00:00||
+manual-48|Sham Cafe|CAFE|Mo-Th,Sa-Su 08:00-01:00; Fr 18:00-01:00||
+manual-49|Farid Zamanuh Cafe|CAFE|Mo-Th,Sa-Su 09:00-00:00; Fr 15:00-00:00||
+manual-50|Rio Cafe|CAFE|||"Always open" in spreadsheet - hours not known
+manual-51|Beanzo|CAFE|Mo-Th,Sa-Su 11:00-00:00; Fr 17:00-00:00||
+manual-52|Kaffeine Coffee House|CAFE|Mo-Th,Sa-Su 08:30-00:30; Fr 16:00-00:30||
+manual-53|Caramelo Restaurant|CAFE|Mo-Th,Sa-Su 10:00-00:00; Fr 12:00-00:00||
+manual-54|Kazdoora – Corn & More|CAFE|||"Always open" in spreadsheet - hours not known
+manual-55|Mr. Baker|SWEETS|||"Always open" in spreadsheet - hours not known
+manual-56|عطر الشام|OTHER|||"Always open" in spreadsheet - hours not known
+manual-57|مطبخ بيت أمي|PALESTINIAN|Mo-Su 08:00-17:00||closing 5:00 could be 05:00 or 17:00
+manual-58|Neapolis Restaurant|OTHER|||"Always open" in spreadsheet - hours not known
+manual-59|Annab|OTHER|Mo-Su 09:00-23:00|5650682021|
+manual-60|ZODIAC Restaurant and Cafe|CAFE|||"Always open" in spreadsheet - hours not known
+manual-61|خان الوكالة|PALESTINIAN|||"Always open" in spreadsheet - hours not known
+manual-62|Wakeup Coffee|CAFE|||"Always open" in spreadsheet - hours not known
+manual-63|مطعم خميس|OTHER|Mo-Su 07:00-00:00|5347793623|
+manual-64|القوقا – Quqa Sale|SWEETS|Mo-Th,Sa-Su 10:00-22:00; Fr 17:00-22:00||
+manual-65|مطعم ألف ليلة وليلة|PALESTINIAN|Mo-Th,Sa-Su 10:00-23:30; Fr 12:00-23:30|4023691957|
+manual-66|Trio Shawarma|SHAWARMA|Mo-Th,Sa-Su 08:00-01:00; Fr 14:00-02:00||
