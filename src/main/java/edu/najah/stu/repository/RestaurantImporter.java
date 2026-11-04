@@ -161,7 +161,14 @@ public class RestaurantImporter {
         return placesById;
     }
 
-    private static List<PipeFile.Row> readBundled(String fileName, int columns) {
+    /**
+     * Reads one of the data files bundled with the program.
+     *
+     * @param fileName the file name inside the bundled data folder
+     * @param columns  the number of fields every line must have
+     * @return the data lines
+     */
+    static List<PipeFile.Row> readBundled(String fileName, int columns) {
         return withBundledFile(fileName, reader -> PipeFile.read(reader, fileName, columns));
     }
 

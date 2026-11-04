@@ -42,12 +42,18 @@ class ManagerConsoleTest {
         service = new RestaurantManagementService(repository);
     }
 
-    /** Runs the console with the given lines typed in, and returns everything it printed. */
-    private String type(String... lines) {
+    /** Opens a restaurant with the given lines typed in, and returns everything printed. */
+    private String typeFor(String restaurantId, String... lines) {
         String input = String.join("\n", lines) + "\n";
         ByteArrayOutputStream printed = new ByteArrayOutputStream();
-        new ManagerConsole(service, new Scanner(input), new PrintStream(printed, true, StandardCharsets.UTF_8)).run();
+        new ManagerConsole(service, new Scanner(input), new PrintStream(printed, true, StandardCharsets.UTF_8))
+                .run(restaurantId);
         return printed.toString(StandardCharsets.UTF_8);
+    }
+
+    /** Opens Khamees, the manager's own restaurant, with the given lines typed in. */
+    private String type(String... lines) {
+        return typeFor(ID, lines);
     }
 
     @Test
@@ -61,28 +67,31 @@ class ManagerConsoleTest {
     }
 
     @Test
-    void emptyIdGoesBack() {
-        String output = type("");
+    void emptyRestaurantIdShowsAnError() {
+        String output = typeFor("", "1");
 
+        assertTrue(output.contains("Error: Restaurant id must not be empty"));
         assertFalse(output.contains("Managing"));
     }
 
     @Test
     void noInputAtAllGoesBack() {
         ByteArrayOutputStream printed = new ByteArrayOutputStream();
-        new ManagerConsole(service, new Scanner(""), new PrintStream(printed, true, StandardCharsets.UTF_8)).run();
+        new ManagerConsole(service, new Scanner(""), new PrintStream(printed, true, StandardCharsets.UTF_8)).run(ID);
 
-        assertFalse(printed.toString(StandardCharsets.UTF_8).contains("Managing"));
+        String output = printed.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("Managing Khamees"));
+        assertFalse(output.contains("Hours:"));
     }
 
     @Test
     void unknownRestaurantShowsAnError() {
-        assertTrue(type("manual-99").contains("Error: Restaurant not found: manual-99"));
+        assertTrue(typeFor("manual-99").contains("Error: Restaurant not found: manual-99"));
     }
 
     @Test
     void showsDetailsWithHoursSourceAndMenu() {
-        String output = type(ID, "1", "0");
+        String output = type("1", "0");
 
         assertTrue(output.contains("Managing Khamees (manual-63)"));
         assertTrue(output.contains("Khamees | Shawarma"));
@@ -95,11 +104,11 @@ class ManagerConsoleTest {
     void showsUnknownHoursEmptyMenuAndUnavailableItems() {
         service.updateLocation(ID, 32.2243506, 35.2434154);
         service.setAvailable(ID, ID + "-1", false);
-        String withUnavailable = type(ID, "1", "0");
+        String withUnavailable = type("1", "0");
         service.removeMenuItem(ID, ID + "-1");
         khamees.changeSchedule(WeeklySchedule.unknown());
 
-        String output = type(ID, "1", "0");
+        String output = type("1", "0");
 
         assertTrue(withUnavailable.contains("12.00 ILS | not available"));
         assertTrue(withUnavailable.contains("Location: 32.2243506, 35.2434154"));
@@ -109,7 +118,7 @@ class ManagerConsoleTest {
 
     @Test
     void changesHours() {
-        String output = type(ID, "2", "Sa-Th 09:00-23:00; Fr off", "0");
+        String output = type("2", "Sa-Th 09:00-23:00; Fr off", "0");
 
         assertTrue(output.contains("Saved. Hours: Mo-Th,Sa-Su 09:00-23:00"), output);
         assertEquals(HoursSource.MANUAL, khamees.getSchedule().getSource());
@@ -117,7 +126,7 @@ class ManagerConsoleTest {
 
     @Test
     void badHoursShowTheExampleAndTheMenuContinues() {
-        String output = type(ID, "2", "always open", "1", "0");
+        String output = type("2", "always open", "1", "0");
 
         assertTrue(output.contains("Error: Cannot read opening hours 'always open'"));
         assertTrue(output.contains("Hours: Mo-Su 07:00-01:00 (osm)"));
@@ -125,7 +134,7 @@ class ManagerConsoleTest {
 
     @Test
     void changesLocation() {
-        String output = type(ID, "3", "32.2243506", "35.2434154", "0");
+        String output = type("3", "32.2243506", "35.2434154", "0");
 
         assertTrue(output.contains("Saved. Location: 32.2243506, 35.2434154"));
         assertTrue(khamees.getLocation().isPresent());
@@ -133,7 +142,7 @@ class ManagerConsoleTest {
 
     @Test
     void locationThatIsNotANumberIsAnError() {
-        String output = type(ID, "3", "north", "0");
+        String output = type("3", "north", "0");
 
         assertTrue(output.contains("Error: 'north' is not a number"));
         assertTrue(khamees.getLocation().isEmpty());
@@ -141,7 +150,7 @@ class ManagerConsoleTest {
 
     @Test
     void addsAnItem() {
-        String output = type(ID, "4", "Kunafa", "10", "0");
+        String output = type("4", "Kunafa", "10", "0");
 
         assertTrue(output.contains("Added Kunafa as manual-63-2"));
         assertEquals(2, khamees.getMenuItems().size());
@@ -149,7 +158,7 @@ class ManagerConsoleTest {
 
     @Test
     void priceThatIsNotANumberIsAnError() {
-        String output = type(ID, "4", "Kunafa", "ten", "0");
+        String output = type("4", "Kunafa", "ten", "0");
 
         assertTrue(output.contains("Error: 'ten' is not a number"));
         assertEquals(1, khamees.getMenuItems().size());
@@ -157,21 +166,21 @@ class ManagerConsoleTest {
 
     @Test
     void changesAPrice() {
-        String output = type(ID, "5", ID + "-1", "13.5", "0");
+        String output = type("5", ID + "-1", "13.5", "0");
 
         assertTrue(output.contains("Saved. Chicken shawarma now costs 13.50 ILS"));
     }
 
     @Test
     void missingItemIsAnError() {
-        String output = type(ID, "5", ID + "-9", "13", "0");
+        String output = type("5", ID + "-9", "13", "0");
 
         assertTrue(output.contains("Error: Menu item manual-63-9 is not on the menu of manual-63"));
     }
 
     @Test
     void changesAvailabilityBothWays() {
-        String output = type(ID, "6", ID + "-1", "no", "6", ID + "-1", "YES", "0");
+        String output = type("6", ID + "-1", "no", "6", ID + "-1", "YES", "0");
 
         assertTrue(output.contains("Saved. Chicken shawarma is not available"));
         assertTrue(output.contains("Saved. Chicken shawarma is available"));
@@ -180,14 +189,14 @@ class ManagerConsoleTest {
 
     @Test
     void availabilityNeedsYesOrNo() {
-        String output = type(ID, "6", ID + "-1", "maybe", "0");
+        String output = type("6", ID + "-1", "maybe", "0");
 
         assertTrue(output.contains("Error: Please answer yes or no"));
     }
 
     @Test
     void removesAnItem() {
-        String output = type(ID, "7", ID + "-1", "0");
+        String output = type("7", ID + "-1", "0");
 
         assertTrue(output.contains("Removed manual-63-1"));
         assertTrue(khamees.getMenuItems().isEmpty());
@@ -195,12 +204,12 @@ class ManagerConsoleTest {
 
     @Test
     void unknownChoiceIsReported() {
-        assertTrue(type(ID, "9", "0").contains("Unknown choice: 9"));
+        assertTrue(type("9", "0").contains("Unknown choice: 9"));
     }
 
     @Test
     void inputEndingInTheMiddleOfAChangeIsSafe() {
-        String output = type(ID, "4");
+        String output = type("4");
 
         assertTrue(output.contains("Error: '' is not a number"));
         assertEquals(1, khamees.getMenuItems().size());
