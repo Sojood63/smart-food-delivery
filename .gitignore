@@ -43,3 +43,6 @@ build/
 out/
 ### Program data (created when the program runs) ###
 /data/
+
+### Mail settings with the secret SMTP key (copy mail.properties.example) ###
+/mail.properties

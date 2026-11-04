@@ -39,6 +39,9 @@ class AuthServiceTest {
     @Mock
     private UserRepository repository;
 
+    @Mock
+    private NotificationService notifications;
+
     private final PasswordHasher hasher = new Pbkdf2PasswordHasher(1000);
     private LocalDateTime now = NOON;
     private AuthService authService;
@@ -46,7 +49,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(repository, hasher, () -> now);
+        authService = new AuthService(repository, hasher, () -> now, notifications);
         sojood = new User("sojood", hasher.hash(PASSWORD), Role.MANAGER, "manual-63", "sojood@example.com");
     }
 
@@ -62,9 +65,10 @@ class AuthServiceTest {
     void rejectsMissingParts() {
         TimeProvider clock = () -> now;
 
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(null, hasher, clock));
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, null, clock));
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, null));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(null, hasher, clock, notifications));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, null, clock, notifications));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, null, notifications));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, clock, null));
     }
 
     // ---------- logging in ----------
@@ -132,12 +136,32 @@ class AuthServiceTest {
         assertEquals(NOON.plusMinutes(15), error.getLockedUntil());
         assertEquals("Too many wrong passwords. This account is locked until 12:15", error.getMessage());
         assertTrue(sojood.isLockedAt(NOON.plusMinutes(14)));
+        verify(notifications).accountLocked(sojood, NOON.plusMinutes(15));
+    }
+
+    @Test
+    void wrongPasswordsBeforeTheLockSendNoEmail() {
+        sojoodExists();
+        wrongPassword();
+        wrongPassword();
+
+        verify(notifications, never()).accountLocked(any(), any());
+    }
+
+    @Test
+    void tryingWhileLockedSendsNoSecondEmail() {
+        sojood.lockUntil(NOON.plusMinutes(15));
+        sojoodExists();
+
+        assertThrows(AccountLockedException.class, () -> authService.login("sojood", "wrong-password1"));
+
+        verify(notifications, never()).accountLocked(any(), any());
     }
 
     @Test
     void lockedAccountRefusesEvenTheRightPasswordWithoutCheckingIt() {
         PasswordHasher spyHasher = mock(PasswordHasher.class);
-        AuthService service = new AuthService(repository, spyHasher, () -> now);
+        AuthService service = new AuthService(repository, spyHasher, () -> now, notifications);
         sojood.lockUntil(NOON.plusMinutes(15));
         sojoodExists();
         now = NOON.plusMinutes(14);
@@ -198,6 +222,7 @@ class AuthServiceTest {
         assertEquals(Role.CUSTOMER, customer.getRole());
         assertTrue(hasher.matches("Layan2026", customer.getPasswordHash()));
         verify(repository).save(customer);
+        verify(notifications).welcome(customer);
     }
 
     @Test
@@ -209,6 +234,7 @@ class AuthServiceTest {
 
         assertEquals("Username 'SOJOOD' is already taken", error.getMessage());
         verify(repository, never()).save(any());
+        verify(notifications, never()).welcome(any());
     }
 
     @ParameterizedTest

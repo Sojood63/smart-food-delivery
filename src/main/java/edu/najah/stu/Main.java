@@ -4,6 +4,8 @@ import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.notification.EmailNotificationService;
+import edu.najah.stu.notification.MailSenders;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
 import edu.najah.stu.presentation.RestaurantFormatter;
@@ -30,6 +32,7 @@ public class Main {
     private static final double SEARCH_RADIUS_KM = 1.5;
     private static final int NAMES_TO_SHOW = 10;
     private static final Path DATA_FOLDER = Path.of("data");
+    private static final Path MAIL_SETTINGS = Path.of("mail.properties");
     private static final String CUSTOMER_MENU = String.join(System.lineSeparator(),
             "",
             "1) Open restaurants near An-Najah",
@@ -54,7 +57,8 @@ public class Main {
 
     private void start() {
         FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
-        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider());
+        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider(),
+                new EmailNotificationService(MailSenders.fromSettings(System.getenv(), MAIL_SETTINGS, System.out)));
         LoginConsole loginConsole = new LoginConsole(authService, in, System.out);
 
         System.out.println("Loaded " + restaurants.findAll().size() + " restaurants and " + users.findAll().size()
