@@ -88,6 +88,21 @@ public class FileRestaurantRepository implements RestaurantRepository {
         writeFiles();
     }
 
+    /**
+     * Throws away every stored restaurant and keeps only the given ones.
+     * Used to load the bundled data again.
+     *
+     * @param newRestaurants the restaurants to keep; none may be null
+     * @throws IllegalArgumentException if a restaurant is null or a text contains {@code |} or a line break
+     */
+    public void replaceAll(Collection<Restaurant> newRestaurants) {
+        for (Restaurant restaurant : newRestaurants) {
+            checkStorable(restaurant);
+        }
+        restaurants.clear();
+        saveAll(newRestaurants);
+    }
+
     @Override
     public Optional<Restaurant> findById(String id) {
         return Optional.ofNullable(restaurants.get(id));
