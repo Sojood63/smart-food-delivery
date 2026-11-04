@@ -5,7 +5,11 @@ import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.User;
 import edu.najah.stu.domain.WeeklySchedule;
+import edu.najah.stu.event.EventPublisher;
+import edu.najah.stu.event.RestaurantEvent;
 import edu.najah.stu.repository.RestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,23 +37,29 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The manager's changes: each good change is saved once, each bad one is
- * rejected and nothing is saved. The repository is a mock.
+ * The manager's changes: each good change is saved once and published as an
+ * event; each bad one is rejected, and nothing is saved or published.
+ * The repository and the event publisher are mocks.
  */
 @ExtendWith(MockitoExtension.class)
 class RestaurantManagementServiceTest {
 
     private static final String ID = "manual-63";
+    private static final String HASH = "pbkdf2$1$c2FsdA==$aGFzaA==";
 
     @Mock
     private RestaurantRepository repository;
 
+    @Mock
+    private EventPublisher events;
+
     private RestaurantManagementService service;
     private Restaurant khamees;
+    private final User sojood = new User("sojood", HASH, Role.MANAGER, ID, "sojood@example.com");
 
     @BeforeEach
     void setUp() {
-        service = new RestaurantManagementService(repository);
+        service = new RestaurantManagementService(repository, events);
         khamees = new Restaurant(ID, "Khamees", WeeklySchedule.unknown(), null, Cuisine.SHAWARMA);
         khamees.addMenuItem(new MenuItem(ID + "-1", "Chicken shawarma", new BigDecimal("12"), true));
         khamees.addMenuItem(new MenuItem(ID + "-2", "Fries", new BigDecimal("8"), true));
@@ -59,43 +69,53 @@ class RestaurantManagementServiceTest {
         when(repository.findById(any())).thenReturn(Optional.of(khamees));
     }
 
-    /** Checks that a change was rejected and nothing was saved. */
+    /** Checks that a change was rejected, and that nothing was saved or published. */
     private <T extends Throwable> T rejected(Class<T> type, Executable change) {
         T error = assertThrows(type, change);
         verify(repository, never()).save(any());
+        verify(events, never()).publish(any());
         return error;
     }
 
     @Test
-    void rejectsMissingRepository() {
-        assertThrows(IllegalArgumentException.class, () -> new RestaurantManagementService(null));
+    void rejectsMissingParts() {
+        assertThrows(IllegalArgumentException.class, () -> new RestaurantManagementService(null, events));
+        assertThrows(IllegalArgumentException.class, () -> new RestaurantManagementService(repository, null));
     }
 
-    // ---------- finding the restaurant ----------
+    // ---------- who may manage ----------
 
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {"   "})
-    void rejectsEmptyRestaurantId(String id) {
-        assertThrows(IllegalArgumentException.class, () -> service.getRestaurant(id));
+    @Test
+    void managerGetsTheirOwnRestaurant() {
+        restaurantExists();
+
+        assertEquals(khamees, service.getRestaurant(sojood));
     }
 
     @Test
-    void unknownRestaurantIsReported() {
+    void customersAndNobodyCannotManage() {
+        User customer = new User("layan", HASH, Role.CUSTOMER, null, "layan@example.com");
+
+        rejected(IllegalArgumentException.class, () -> service.updateHours(customer, "24/7"));
+        rejected(IllegalArgumentException.class, () -> service.updateHours(null, "24/7"));
+    }
+
+    @Test
+    void missingRestaurantIsReported() {
         when(repository.findById(any())).thenReturn(Optional.empty());
 
         RestaurantNotFoundException error = rejected(RestaurantNotFoundException.class,
-                () -> service.updateHours("manual-99", "24/7"));
-        assertEquals("Restaurant not found: manual-99", error.getMessage());
+                () -> service.updateHours(sojood, "24/7"));
+        assertEquals("Restaurant not found: manual-63", error.getMessage());
     }
 
     // ---------- hours ----------
 
     @Test
-    void savesNewHoursAsTheManagersOwn() {
+    void savesNewHoursAsTheManagersOwnAndTellsTheManager() {
         restaurantExists();
 
-        WeeklySchedule schedule = service.updateHours(ID, "Sa-Th 09:00-23:00; Fr off");
+        WeeklySchedule schedule = service.updateHours(sojood, "Sa-Th 09:00-23:00; Fr off");
 
         assertEquals(HoursSource.MANUAL, schedule.getSource());
         assertEquals(schedule, khamees.getSchedule());
@@ -103,13 +123,14 @@ class RestaurantManagementServiceTest {
         assertEquals(LocalTime.of(23, 0),
                 khamees.getSchedule().hoursOn(DayOfWeek.MONDAY).orElseThrow().getClosesAt());
         verify(repository).save(khamees);
+        verify(events).publish(RestaurantEvent.hoursChanged(sojood, khamees));
     }
 
     @Test
     void acceptsOpenAllDay() {
         restaurantExists();
 
-        assertTrue(service.updateHours(ID, "24/7").isOpenAllDay());
+        assertTrue(service.updateHours(sojood, "24/7").isOpenAllDay());
     }
 
     @ParameterizedTest
@@ -118,7 +139,7 @@ class RestaurantManagementServiceTest {
     void rejectsHoursItCannotRead(String text) {
         restaurantExists();
 
-        InvalidHoursException error = rejected(InvalidHoursException.class, () -> service.updateHours(ID, text));
+        InvalidHoursException error = rejected(InvalidHoursException.class, () -> service.updateHours(sojood, text));
         assertTrue(error.getMessage().contains("Example: Sa-Th 09:00-23:00; Fr off"));
         assertEquals(HoursSource.UNKNOWN, khamees.getSchedule().getSource());
     }
@@ -129,10 +150,11 @@ class RestaurantManagementServiceTest {
     void savesALocationInNablus() {
         restaurantExists();
 
-        Location location = service.updateLocation(ID, 32.2243506, 35.2434154);
+        Location location = service.updateLocation(sojood, 32.2243506, 35.2434154);
 
         assertEquals(Optional.of(location), khamees.getLocation());
         verify(repository).save(khamees);
+        verify(events).publish(RestaurantEvent.locationChanged(sojood, khamees, location));
     }
 
     @Test
@@ -140,7 +162,7 @@ class RestaurantManagementServiceTest {
         restaurantExists();
 
         IllegalArgumentException error = rejected(IllegalArgumentException.class,
-                () -> service.updateLocation(ID, 31.7683, 35.2137));
+                () -> service.updateLocation(sojood, 31.7683, 35.2137));
         assertTrue(error.getMessage().contains("restaurants must be within 10 km"), error.getMessage());
         assertTrue(khamees.getLocation().isEmpty());
     }
@@ -149,7 +171,7 @@ class RestaurantManagementServiceTest {
     void rejectsImpossibleCoordinates() {
         restaurantExists();
 
-        rejected(IllegalArgumentException.class, () -> service.updateLocation(ID, 95, 35.2));
+        rejected(IllegalArgumentException.class, () -> service.updateLocation(sojood, 95, 35.2));
     }
 
     // ---------- adding items ----------
@@ -158,20 +180,21 @@ class RestaurantManagementServiceTest {
     void addsAnAvailableItemWithTheNextId() {
         restaurantExists();
 
-        MenuItem item = service.addMenuItem(ID, "  Kunafa  ", new BigDecimal("10"));
+        MenuItem item = service.addMenuItem(sojood, "  Kunafa  ", new BigDecimal("10"));
 
         assertEquals(ID + "-3", item.getId());
         assertEquals("Kunafa", item.getName());
         assertTrue(item.isAvailable());
         assertEquals(3, khamees.getMenuItems().size());
         verify(repository).save(khamees);
+        verify(events).publish(RestaurantEvent.itemAdded(sojood, khamees, item));
     }
 
     @Test
     void rejectsAnItemNameAlreadyOnTheMenu() {
         restaurantExists();
 
-        rejected(IllegalArgumentException.class, () -> service.addMenuItem(ID, "FRIES", new BigDecimal("9")));
+        rejected(IllegalArgumentException.class, () -> service.addMenuItem(sojood, "FRIES", new BigDecimal("9")));
         assertEquals(2, khamees.getMenuItems().size());
     }
 
@@ -181,35 +204,37 @@ class RestaurantManagementServiceTest {
     void rejectsBadItemNames(String name) {
         restaurantExists();
 
-        rejected(IllegalArgumentException.class, () -> service.addMenuItem(ID, name, BigDecimal.TEN));
+        rejected(IllegalArgumentException.class, () -> service.addMenuItem(sojood, name, BigDecimal.TEN));
     }
 
     @Test
     void rejectsANewItemWithoutAPositivePrice() {
         restaurantExists();
 
-        rejected(IllegalArgumentException.class, () -> service.addMenuItem(ID, "Kunafa", BigDecimal.ZERO));
+        rejected(IllegalArgumentException.class, () -> service.addMenuItem(sojood, "Kunafa", BigDecimal.ZERO));
         assertEquals(2, khamees.getMenuItems().size());
     }
 
     // ---------- changing items ----------
 
     @Test
-    void changesAPrice() {
+    void changesAPriceAndRemembersTheOldOne() {
         restaurantExists();
 
-        MenuItem item = service.changePrice(ID, ID + "-2", new BigDecimal("9.5"));
+        MenuItem item = service.changePrice(sojood, ID + "-2", new BigDecimal("9.5"));
 
         assertEquals(new BigDecimal("9.50"), item.getPrice());
         assertEquals(new BigDecimal("9.50"), khamees.findMenuItem(ID + "-2").orElseThrow().getPrice());
         verify(repository).save(khamees);
+        verify(events).publish(RestaurantEvent.priceChanged(sojood, khamees, item, new BigDecimal("8.00")));
     }
 
     @Test
     void rejectsANegativePriceAndKeepsTheOldOne() {
         restaurantExists();
 
-        rejected(IllegalArgumentException.class, () -> service.changePrice(ID, ID + "-2", new BigDecimal("-3")));
+        rejected(IllegalArgumentException.class,
+                () -> service.changePrice(sojood, ID + "-2", new BigDecimal("-3")));
         assertEquals(new BigDecimal("8.00"), khamees.findMenuItem(ID + "-2").orElseThrow().getPrice());
     }
 
@@ -217,9 +242,12 @@ class RestaurantManagementServiceTest {
     void makesAnItemUnavailableAndAvailableAgain() {
         restaurantExists();
 
-        assertFalse(service.setAvailable(ID, ID + "-1", false).isAvailable());
+        MenuItem soldOut = service.setAvailable(sojood, ID + "-1", false);
+
+        assertFalse(soldOut.isAvailable());
         assertFalse(khamees.findMenuItem(ID + "-1").orElseThrow().isAvailable());
-        assertTrue(service.setAvailable(ID, ID + "-1", true).isAvailable());
+        verify(events).publish(RestaurantEvent.availabilityChanged(sojood, khamees, soldOut));
+        assertTrue(service.setAvailable(sojood, ID + "-1", true).isAvailable());
     }
 
     @Test
@@ -227,7 +255,7 @@ class RestaurantManagementServiceTest {
         restaurantExists();
 
         MenuItemNotFoundException error = rejected(MenuItemNotFoundException.class,
-                () -> service.setAvailable(ID, ID + "-9", false));
+                () -> service.setAvailable(sojood, ID + "-9", false));
         assertEquals("Menu item manual-63-9 is not on the menu of manual-63", error.getMessage());
     }
 
@@ -236,18 +264,20 @@ class RestaurantManagementServiceTest {
     @Test
     void removesAnItemForGood() {
         restaurantExists();
+        MenuItem chicken = khamees.findMenuItem(ID + "-1").orElseThrow();
 
-        service.removeMenuItem(ID, ID + "-1");
+        service.removeMenuItem(sojood, ID + "-1");
 
         assertEquals(List.of(ID + "-2"), khamees.getMenuItems().stream().map(MenuItem::getId).toList());
         verify(repository).save(khamees);
+        verify(events).publish(RestaurantEvent.itemRemoved(sojood, khamees, chicken));
     }
 
     @Test
     void removingAMissingItemIsReported() {
         restaurantExists();
 
-        rejected(MenuItemNotFoundException.class, () -> service.removeMenuItem(ID, ID + "-9"));
+        rejected(MenuItemNotFoundException.class, () -> service.removeMenuItem(sojood, ID + "-9"));
     }
 
     // ---------- item ids ----------

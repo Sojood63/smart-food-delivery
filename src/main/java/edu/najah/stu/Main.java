@@ -4,7 +4,8 @@ import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
-import edu.najah.stu.notification.EmailNotificationService;
+import edu.najah.stu.event.EventBus;
+import edu.najah.stu.notification.EmailEventListener;
 import edu.najah.stu.notification.MailSenders;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
@@ -48,8 +49,9 @@ public class Main {
     private final FileRestaurantRepository restaurants = DataStore.open(DATA_FOLDER, importer::importBundledData);
     private final RestaurantService restaurantService = new RestaurantService(restaurants, new SystemTimeProvider());
     private final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
+    private final EventBus events = new EventBus();
     private final ManagerConsole managerConsole =
-            new ManagerConsole(new RestaurantManagementService(restaurants), in, System.out);
+            new ManagerConsole(new RestaurantManagementService(restaurants, events), in, System.out);
 
     public static void main(String[] args) {
         new Main().start();
@@ -57,8 +59,8 @@ public class Main {
 
     private void start() {
         FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
-        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider(),
-                new EmailNotificationService(MailSenders.fromSettings(System.getenv(), MAIL_SETTINGS, System.out)));
+        events.subscribe(new EmailEventListener(MailSenders.fromSettings(System.getenv(), MAIL_SETTINGS, System.out)));
+        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider(), events);
         LoginConsole loginConsole = new LoginConsole(authService, in, System.out);
 
         System.out.println("Loaded " + restaurants.findAll().size() + " restaurants and " + users.findAll().size()
@@ -94,11 +96,10 @@ public class Main {
     }
 
     private void managerMenu(User manager) {
-        String restaurantId = manager.getRestaurantId().orElseThrow();
         String choice = ask(MANAGER_MENU);
         while (!choice.equals("0")) {
             switch (choice) {
-                case "1" -> managerConsole.run(restaurantId);
+                case "1" -> managerConsole.run(manager);
                 case "2" -> printNearby();
                 case "3" -> reload();
                 default -> System.out.println("Unknown choice: " + choice);

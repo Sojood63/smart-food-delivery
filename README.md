@@ -26,7 +26,22 @@ After 3 wrong passwords in a row an account is locked for 15 minutes.
 
 ## Email
 
-New customers get a welcome email, and users get an email when their account is locked.
+Every important event sends an email to the person it concerns:
+
+| Event                                   | Email goes to |
+|-----------------------------------------|---------------|
+| A customer creates an account           | the customer  |
+| An account is locked (3 wrong passwords) | the user      |
+| Opening hours changed                   | the manager   |
+| Restaurant location changed             | the manager   |
+| Menu item added / removed               | the manager   |
+| Menu item price changed                 | the manager   |
+| Menu item made available / unavailable  | the manager   |
+
+Services only publish events (`edu.najah.stu.event`); an `EmailEventListener` subscribed to
+the `EventBus` turns each one into an email (Observer pattern). A new kind of email only
+needs a new factory method in `AccountEvent` or `RestaurantEvent`.
+
 Emails are sent over SMTP (for example [Brevo](https://www.brevo.com), free for 300 emails a day).
 The settings are read from a `mail.properties` file next to `pom.xml`
 (copy `mail.properties.example` and fill it in; Git ignores the real file),

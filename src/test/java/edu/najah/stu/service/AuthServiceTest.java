@@ -2,6 +2,8 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.event.AccountEvent;
+import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +42,7 @@ class AuthServiceTest {
     private UserRepository repository;
 
     @Mock
-    private NotificationService notifications;
+    private EventPublisher events;
 
     private final PasswordHasher hasher = new Pbkdf2PasswordHasher(1000);
     private LocalDateTime now = NOON;
@@ -49,7 +51,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(repository, hasher, () -> now, notifications);
+        authService = new AuthService(repository, hasher, () -> now, events);
         sojood = new User("sojood", hasher.hash(PASSWORD), Role.MANAGER, "manual-63", "sojood@example.com");
     }
 
@@ -65,9 +67,9 @@ class AuthServiceTest {
     void rejectsMissingParts() {
         TimeProvider clock = () -> now;
 
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(null, hasher, clock, notifications));
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, null, clock, notifications));
-        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, null, notifications));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(null, hasher, clock, events));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, null, clock, events));
+        assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, null, events));
         assertThrows(IllegalArgumentException.class, () -> new AuthService(repository, hasher, clock, null));
     }
 
@@ -136,7 +138,7 @@ class AuthServiceTest {
         assertEquals(NOON.plusMinutes(15), error.getLockedUntil());
         assertEquals("Too many wrong passwords. This account is locked until 12:15", error.getMessage());
         assertTrue(sojood.isLockedAt(NOON.plusMinutes(14)));
-        verify(notifications).accountLocked(sojood, NOON.plusMinutes(15));
+        verify(events).publish(AccountEvent.locked(sojood, 3, NOON.plusMinutes(15)));
     }
 
     @Test
@@ -145,7 +147,7 @@ class AuthServiceTest {
         wrongPassword();
         wrongPassword();
 
-        verify(notifications, never()).accountLocked(any(), any());
+        verify(events, never()).publish(any());
     }
 
     @Test
@@ -155,13 +157,13 @@ class AuthServiceTest {
 
         assertThrows(AccountLockedException.class, () -> authService.login("sojood", "wrong-password1"));
 
-        verify(notifications, never()).accountLocked(any(), any());
+        verify(events, never()).publish(any());
     }
 
     @Test
     void lockedAccountRefusesEvenTheRightPasswordWithoutCheckingIt() {
         PasswordHasher spyHasher = mock(PasswordHasher.class);
-        AuthService service = new AuthService(repository, spyHasher, () -> now, notifications);
+        AuthService service = new AuthService(repository, spyHasher, () -> now, events);
         sojood.lockUntil(NOON.plusMinutes(15));
         sojoodExists();
         now = NOON.plusMinutes(14);
@@ -222,7 +224,7 @@ class AuthServiceTest {
         assertEquals(Role.CUSTOMER, customer.getRole());
         assertTrue(hasher.matches("Layan2026", customer.getPasswordHash()));
         verify(repository).save(customer);
-        verify(notifications).welcome(customer);
+        verify(events).publish(AccountEvent.registered(customer));
     }
 
     @Test
@@ -234,7 +236,7 @@ class AuthServiceTest {
 
         assertEquals("Username 'SOJOOD' is already taken", error.getMessage());
         verify(repository, never()).save(any());
-        verify(notifications, never()).welcome(any());
+        verify(events, never()).publish(any());
     }
 
     @ParameterizedTest

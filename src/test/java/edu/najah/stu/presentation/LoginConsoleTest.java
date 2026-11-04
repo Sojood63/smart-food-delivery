@@ -2,9 +2,9 @@ package edu.najah.stu.presentation;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.repository.FileUserRepository;
 import edu.najah.stu.service.AuthService;
-import edu.najah.stu.service.NotificationService;
 import edu.najah.stu.service.Pbkdf2PasswordHasher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ class LoginConsoleTest {
         users = new FileUserRepository(folder.resolve("users.txt"));
         users.save(new User("sojood", hasher.hash("Manager123"), Role.MANAGER, "manual-63", "sojood@example.com"));
         authService = new AuthService(users, hasher, () -> LocalDateTime.of(2026, 11, 4, 12, 0),
-                mock(NotificationService.class));
+                mock(EventPublisher.class));
     }
 
     /** Runs the login screen with the given lines typed in; the printed text is kept in {@link #printed}. */

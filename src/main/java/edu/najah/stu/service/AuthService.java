@@ -2,6 +2,8 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.event.AccountEvent;
+import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.repository.UserRepository;
 
 import java.time.Duration;
@@ -13,9 +15,9 @@ import java.util.Locale;
  *
  * <p>Wrong usernames and wrong passwords get the same message, so nobody can
  * find out which usernames exist. After {@value #MAX_FAILED_LOGINS} wrong
- * passwords in a row the account is locked for 15 minutes and the user is
- * told by email. New customers get a welcome email. The clock comes from a
- * {@link TimeProvider}, so tests can move time forward.</p>
+ * passwords in a row the account is locked for 15 minutes. Both a new
+ * account and a lock are published as events, so the user gets an email.
+ * The clock comes from a {@link TimeProvider}, so tests can move time forward.</p>
  */
 public class AuthService {
 
@@ -33,7 +35,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
     private final TimeProvider timeProvider;
-    private final NotificationService notificationService;
+    private final EventPublisher events;
 
     /**
      * Creates the service.
@@ -41,17 +43,17 @@ public class AuthService {
      * @param userRepository      where users are stored; must not be null
      * @param passwordHasher      hashes and checks passwords; must not be null
      * @param timeProvider        source of the current time; must not be null
-     * @param notificationService sends the welcome and lock emails; must not be null
+     * @param events              where account events are published; must not be null
      */
     public AuthService(UserRepository userRepository, PasswordHasher passwordHasher, TimeProvider timeProvider,
-                       NotificationService notificationService) {
-        if (userRepository == null || passwordHasher == null || timeProvider == null || notificationService == null) {
-            throw new IllegalArgumentException("Repository, hasher, time provider and notifications must not be null");
+                       EventPublisher events) {
+        if (userRepository == null || passwordHasher == null || timeProvider == null || events == null) {
+            throw new IllegalArgumentException("Repository, hasher, time provider and events must not be null");
         }
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.timeProvider = timeProvider;
-        this.notificationService = notificationService;
+        this.events = events;
     }
 
     /**
@@ -109,7 +111,7 @@ public class AuthService {
         }
         User customer = new User(cleanUsername, passwordHasher.hash(password), Role.CUSTOMER, null, cleanEmail);
         userRepository.save(customer);
-        notificationService.welcome(customer);
+        events.publish(AccountEvent.registered(customer));
         return customer;
     }
 
@@ -119,7 +121,7 @@ public class AuthService {
             LocalDateTime until = now.plus(LOCK_TIME).withNano(0);
             user.lockUntil(until);
             userRepository.save(user);
-            notificationService.accountLocked(user, until);
+            events.publish(AccountEvent.locked(user, MAX_FAILED_LOGINS, until));
             return new AccountLockedException(until);
         }
         userRepository.save(user);
