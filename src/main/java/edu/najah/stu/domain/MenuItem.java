@@ -7,8 +7,9 @@ import java.util.Objects;
 /**
  * Represents a single dish or drink offered on a restaurant's menu.
  *
- * <p>A menu item is immutable: its name, price and availability are fixed
- * when it is created. The price is always stored with exactly two decimal
+ * <p>A menu item is immutable: to change its price or availability, a new
+ * item with the same id is made with {@link #withPrice(BigDecimal)} or
+ * {@link #withAvailability(boolean)}. The price is always stored with exactly two decimal
  * places so that it is displayed and summed correctly.</p>
  */
 public class MenuItem {
@@ -78,6 +79,27 @@ public class MenuItem {
      */
     public boolean isAvailable() {
         return available;
+    }
+
+    /**
+     * Returns a copy of this item with a new price.
+     *
+     * @param newPrice the new unit price; must be greater than zero
+     * @return the changed copy, with the same id
+     * @throws IllegalArgumentException if the price is null, zero or negative
+     */
+    public MenuItem withPrice(BigDecimal newPrice) {
+        return new MenuItem(id, name, newPrice, available);
+    }
+
+    /**
+     * Returns a copy of this item that can or cannot be ordered.
+     *
+     * @param canBeOrdered {@code true} if the item can be ordered
+     * @return the changed copy, with the same id
+     */
+    public MenuItem withAvailability(boolean canBeOrdered) {
+        return new MenuItem(id, name, price, canBeOrdered);
     }
 
     /**

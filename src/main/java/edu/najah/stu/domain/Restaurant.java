@@ -11,8 +11,10 @@ import java.util.Optional;
  * <p>A restaurant has a unique id, a display name, a
  * {@link WeeklySchedule}, an optional {@link Location}, a {@link Cuisine}
  * and a menu of {@link MenuItem}s. A restaurant without a known location
- * can still be listed as open, but cannot be found by distance. The menu can only be changed through
- * {@link #addMenuItem(MenuItem)}, which rejects duplicate items.</p>
+ * can still be listed as open, but cannot be found by distance.</p>
+ *
+ * <p>The id, name and cuisine never change. The hours, the location and the
+ * menu can be changed by the restaurant's manager.</p>
  */
 public class Restaurant {
 
@@ -23,10 +25,10 @@ public class Restaurant {
     private final String name;
 
     /** The weekly hours in which the restaurant accepts orders. */
-    private final WeeklySchedule schedule;
+    private WeeklySchedule schedule;
 
     /** Where the restaurant is; null when not known yet. */
-    private final Location location;
+    private Location location;
 
     /** The main kind of food the restaurant serves. */
     private final Cuisine cuisine;
@@ -79,6 +81,69 @@ public class Restaurant {
             throw new IllegalArgumentException("Menu item already exists: " + item.getId());
         }
         menuItems.add(item);
+    }
+
+    /**
+     * Replaces a menu item with a changed version of it, keeping its place on the menu.
+     *
+     * @param updated the changed item; must have the id of an item already on the menu
+     * @throws IllegalArgumentException if the item is null or not on the menu
+     */
+    public void replaceMenuItem(MenuItem updated) {
+        if (updated == null) {
+            throw new IllegalArgumentException("Menu item must not be null");
+        }
+        int index = menuItems.indexOf(updated);
+        if (index < 0) {
+            throw new IllegalArgumentException("Menu item is not on the menu: " + updated.getId());
+        }
+        menuItems.set(index, updated);
+    }
+
+    /**
+     * Removes an item from the menu.
+     *
+     * @param itemId the id of the item to remove
+     * @return {@code true} if the item was on the menu and has been removed
+     */
+    public boolean removeMenuItem(String itemId) {
+        return menuItems.removeIf(item -> item.getId().equals(itemId));
+    }
+
+    /**
+     * Finds a menu item by its id.
+     *
+     * @param itemId the id to look for
+     * @return the item, or empty if it is not on the menu
+     */
+    public Optional<MenuItem> findMenuItem(String itemId) {
+        return menuItems.stream().filter(item -> item.getId().equals(itemId)).findFirst();
+    }
+
+    /**
+     * Sets new weekly opening hours.
+     *
+     * @param newSchedule the new hours; must not be null
+     * @throws IllegalArgumentException if the schedule is null
+     */
+    public void changeSchedule(WeeklySchedule newSchedule) {
+        if (newSchedule == null) {
+            throw new IllegalArgumentException("Schedule must not be null");
+        }
+        this.schedule = newSchedule;
+    }
+
+    /**
+     * Sets where the restaurant is.
+     *
+     * @param newLocation the new location; must not be null
+     * @throws IllegalArgumentException if the location is null
+     */
+    public void moveTo(Location newLocation) {
+        if (newLocation == null) {
+            throw new IllegalArgumentException("Location must not be null");
+        }
+        this.location = newLocation;
     }
 
     /**
