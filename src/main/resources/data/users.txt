@@ -1,0 +1,8 @@
+# Demo accounts, copied to data/users.txt on the first run.
+# Only password hashes are stored here. The demo passwords are listed in the README:
+#   sojood    (Manager of Khamees, manual-63)  password: Manager123
+#   customer1 (Customer)                       password: Customer123
+#
+# username|role|restaurantId|email|failedLogins|lockedUntil|passwordHash
+sojood|MANAGER|manual-63|sojood@example.com|0||pbkdf2$120000$DleO2gx83RH3LTrlM5VPPw==$RNoKtnfkJnbB5kQOccY8lRd9ZuOA+ow9spLUvMe0h98=
+customer1|CUSTOMER||customer1@example.com|0||pbkdf2$120000$GQb1Z0tWT3ncMLG9Rrl/bQ==$SR49he9zBQET++SyD5CHhKM2aCE1sLV2jgTo5PuHO+0=

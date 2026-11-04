@@ -14,10 +14,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -198,8 +196,8 @@ public class FileRestaurantRepository implements RestaurantRepository {
             restaurantLines.add(restaurantLine(restaurant));
             restaurant.getMenuItems().forEach(item -> menuLines.add(menuLine(restaurant, item)));
         }
-        writeSafely(restaurantsFile, restaurantLines);
-        writeSafely(menuFile, menuLines);
+        SafeFile.write(restaurantsFile, restaurantLines);
+        SafeFile.write(menuFile, menuLines);
     }
 
     private static String restaurantLine(Restaurant restaurant) {
@@ -213,22 +211,5 @@ public class FileRestaurantRepository implements RestaurantRepository {
     private static String menuLine(Restaurant restaurant, MenuItem item) {
         return String.join("|", item.getId(), restaurant.getId(), item.getName(),
                 item.getPrice().toPlainString(), item.isAvailable() ? "yes" : "no");
-    }
-
-    /** Writes to a temporary file next to the target, then moves it over the target. */
-    private static void writeSafely(Path file, List<String> lines) {
-        try {
-            Path folder = file.toAbsolutePath().getParent();
-            Files.createDirectories(folder);
-            Path temporary = Files.createTempFile(folder, file.getFileName().toString(), ".tmp");
-            Files.write(temporary, lines, StandardCharsets.UTF_8);
-            try {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot write " + file, e);
-        }
     }
 }

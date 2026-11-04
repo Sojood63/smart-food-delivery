@@ -16,7 +16,8 @@ import java.util.Locale;
 import java.util.Scanner;
 
 /**
- * The text menu a restaurant manager uses to change hours, location and menu.
+ * The text menu a restaurant manager uses to change their restaurant's hours,
+ * location and menu. A manager can only open their own restaurant.
  *
  * <p>It only reads and prints; every check and every save is done by
  * {@link RestaurantManagementService}. A mistake prints an error and returns
@@ -36,8 +37,7 @@ public class ManagerConsole {
             "0) Back");
 
     private final RestaurantManagementService service;
-    private final Scanner in;
-    private final PrintStream out;
+    private final ConsoleIO io;
 
     /**
      * Creates the console.
@@ -47,34 +47,31 @@ public class ManagerConsole {
      * @param out     where text is printed; must not be null
      */
     public ManagerConsole(RestaurantManagementService service, Scanner in, PrintStream out) {
-        if (service == null || in == null || out == null) {
-            throw new IllegalArgumentException("Service, input and output must not be null");
+        if (service == null) {
+            throw new IllegalArgumentException("Service must not be null");
         }
         this.service = service;
-        this.in = in;
-        this.out = out;
+        this.io = new ConsoleIO(in, out);
     }
 
     /**
-     * Asks for a restaurant id and shows the manager menu until the manager chooses "Back".
+     * Shows the manager menu for one restaurant until the manager chooses "Back".
+     *
+     * @param restaurantId the restaurant the logged-in manager runs
      */
-    public void run() {
-        String restaurantId = ask("Restaurant id (for example manual-63), or press Enter to go back:");
-        if (restaurantId == null || restaurantId.isEmpty()) {
-            return;
-        }
+    public void run(String restaurantId) {
         Restaurant restaurant;
         try {
             restaurant = service.getRestaurant(restaurantId);
-        } catch (RestaurantNotFoundException e) {
-            out.println("Error: " + e.getMessage());
+        } catch (IllegalArgumentException | RestaurantNotFoundException e) {
+            io.println("Error: " + e.getMessage());
             return;
         }
-        out.println("Managing " + restaurant.getName() + " (" + restaurant.getId() + ")");
-        String choice = ask(MENU);
+        io.println("Managing " + restaurant.getName() + " (" + restaurant.getId() + ")");
+        String choice = io.ask(MENU);
         while (choice != null && !choice.equals("0")) {
             handle(choice, restaurant);
-            choice = ask(MENU);
+            choice = io.ask(MENU);
         }
     }
 
@@ -89,22 +86,22 @@ public class ManagerConsole {
                 case "5" -> changePrice(id);
                 case "6" -> changeAvailability(id);
                 case "7" -> removeItem(id);
-                default -> out.println("Unknown choice: " + choice);
+                default -> io.println("Unknown choice: " + choice);
             }
         } catch (IllegalArgumentException | MenuItemNotFoundException e) {
-            out.println("Error: " + e.getMessage());
+            io.println("Error: " + e.getMessage());
         }
     }
 
     private void showDetails(Restaurant restaurant) {
-        out.println(restaurant.getName() + " | " + restaurant.getCuisine().getDisplayName());
-        out.println("Hours: " + describeHours(restaurant));
-        out.println("Location: " + restaurant.getLocation().map(ManagerConsole::describe).orElse("not known yet"));
+        io.println(restaurant.getName() + " | " + restaurant.getCuisine().getDisplayName());
+        io.println("Hours: " + describeHours(restaurant));
+        io.println("Location: " + restaurant.getLocation().map(ManagerConsole::describe).orElse("not known yet"));
         if (restaurant.getMenuItems().isEmpty()) {
-            out.println("Menu: empty");
+            io.println("Menu: empty");
         }
         for (MenuItem item : restaurant.getMenuItems()) {
-            out.println("  " + item.getId() + " | " + item.getName() + " | " + item.getPrice().toPlainString()
+            io.println("  " + item.getId() + " | " + item.getName() + " | " + item.getPrice().toPlainString()
                     + " ILS" + (item.isAvailable() ? "" : " | not available"));
         }
     }
@@ -122,44 +119,44 @@ public class ManagerConsole {
     }
 
     private void changeHours(String id) {
-        String text = answer("New hours (example: " + InvalidHoursException.EXAMPLE + ", or 24/7):");
-        out.println("Saved. Hours: " + HoursFormatter.format(service.updateHours(id, text)));
+        String text = io.answer("New hours (example: " + InvalidHoursException.EXAMPLE + ", or 24/7):");
+        io.println("Saved. Hours: " + HoursFormatter.format(service.updateHours(id, text)));
     }
 
     private void changeLocation(String id) {
-        double latitude = number(answer("Latitude (example: 32.2243):")).doubleValue();
-        double longitude = number(answer("Longitude (example: 35.2434):")).doubleValue();
-        out.println("Saved. Location: " + describe(service.updateLocation(id, latitude, longitude)));
+        double latitude = number(io.answer("Latitude (example: 32.2243):")).doubleValue();
+        double longitude = number(io.answer("Longitude (example: 35.2434):")).doubleValue();
+        io.println("Saved. Location: " + describe(service.updateLocation(id, latitude, longitude)));
     }
 
     private void addItem(String id) {
-        String name = answer("Item name:");
-        BigDecimal price = number(answer("Price in ILS:"));
+        String name = io.answer("Item name:");
+        BigDecimal price = number(io.answer("Price in ILS:"));
         MenuItem item = service.addMenuItem(id, name, price);
-        out.println("Added " + item.getName() + " as " + item.getId());
+        io.println("Added " + item.getName() + " as " + item.getId());
     }
 
     private void changePrice(String id) {
-        String itemId = answer("Item id:");
-        BigDecimal price = number(answer("New price in ILS:"));
+        String itemId = io.answer("Item id:");
+        BigDecimal price = number(io.answer("New price in ILS:"));
         MenuItem item = service.changePrice(id, itemId, price);
-        out.println("Saved. " + item.getName() + " now costs " + item.getPrice().toPlainString() + " ILS");
+        io.println("Saved. " + item.getName() + " now costs " + item.getPrice().toPlainString() + " ILS");
     }
 
     private void changeAvailability(String id) {
-        String itemId = answer("Item id:");
-        String reply = answer("Can customers order it now? (yes/no):").toLowerCase(Locale.ROOT);
+        String itemId = io.answer("Item id:");
+        String reply = io.answer("Can customers order it now? (yes/no):").toLowerCase(Locale.ROOT);
         if (!reply.equals("yes") && !reply.equals("no")) {
             throw new IllegalArgumentException("Please answer yes or no");
         }
         MenuItem item = service.setAvailable(id, itemId, reply.equals("yes"));
-        out.println("Saved. " + item.getName() + (item.isAvailable() ? " is available" : " is not available"));
+        io.println("Saved. " + item.getName() + (item.isAvailable() ? " is available" : " is not available"));
     }
 
     private void removeItem(String id) {
-        String itemId = answer("Item id to remove for good:");
+        String itemId = io.answer("Item id to remove for good:");
         service.removeMenuItem(id, itemId);
-        out.println("Removed " + itemId);
+        io.println("Removed " + itemId);
     }
 
     /** Reads a typed number such as {@code 12.5}, with a clear message for anything else. */
@@ -169,17 +166,5 @@ public class ManagerConsole {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("'" + text + "' is not a number");
         }
-    }
-
-    /** Prints a prompt and reads one line; returns null when there is no more input. */
-    private String ask(String prompt) {
-        out.println(prompt);
-        return in.hasNextLine() ? in.nextLine().trim() : null;
-    }
-
-    /** Like {@link #ask(String)}, but no input counts as an empty answer. */
-    private String answer(String prompt) {
-        String reply = ask(prompt);
-        return reply == null ? "" : reply;
     }
 }
