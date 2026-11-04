@@ -1,0 +1,7 @@
+# Copy this file to "mail.properties" (same folder) and fill in your Brevo details.
+# Git ignores mail.properties, so your SMTP key is never uploaded.
+# Brevo: app.brevo.com/settings/keys/smtp shows the Login and lets you make an SMTP key.
+
+MAIL_USERNAME=your-login@smtp-brevo.com
+MAIL_PASSWORD=your-smtp-key
+MAIL_FROM=smartfood.najah@gmail.com

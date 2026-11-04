@@ -13,8 +13,9 @@ import java.util.Locale;
  *
  * <p>Wrong usernames and wrong passwords get the same message, so nobody can
  * find out which usernames exist. After {@value #MAX_FAILED_LOGINS} wrong
- * passwords in a row the account is locked for 15 minutes. The clock comes
- * from a {@link TimeProvider}, so tests can move time forward.</p>
+ * passwords in a row the account is locked for 15 minutes and the user is
+ * told by email. New customers get a welcome email. The clock comes from a
+ * {@link TimeProvider}, so tests can move time forward.</p>
  */
 public class AuthService {
 
@@ -32,21 +33,25 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
     private final TimeProvider timeProvider;
+    private final NotificationService notificationService;
 
     /**
      * Creates the service.
      *
-     * @param userRepository where users are stored; must not be null
-     * @param passwordHasher hashes and checks passwords; must not be null
-     * @param timeProvider   source of the current time; must not be null
+     * @param userRepository      where users are stored; must not be null
+     * @param passwordHasher      hashes and checks passwords; must not be null
+     * @param timeProvider        source of the current time; must not be null
+     * @param notificationService sends the welcome and lock emails; must not be null
      */
-    public AuthService(UserRepository userRepository, PasswordHasher passwordHasher, TimeProvider timeProvider) {
-        if (userRepository == null || passwordHasher == null || timeProvider == null) {
-            throw new IllegalArgumentException("Repository, hasher and time provider must not be null");
+    public AuthService(UserRepository userRepository, PasswordHasher passwordHasher, TimeProvider timeProvider,
+                       NotificationService notificationService) {
+        if (userRepository == null || passwordHasher == null || timeProvider == null || notificationService == null) {
+            throw new IllegalArgumentException("Repository, hasher, time provider and notifications must not be null");
         }
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.timeProvider = timeProvider;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -104,6 +109,7 @@ public class AuthService {
         }
         User customer = new User(cleanUsername, passwordHasher.hash(password), Role.CUSTOMER, null, cleanEmail);
         userRepository.save(customer);
+        notificationService.welcome(customer);
         return customer;
     }
 
@@ -113,6 +119,7 @@ public class AuthService {
             LocalDateTime until = now.plus(LOCK_TIME).withNano(0);
             user.lockUntil(until);
             userRepository.save(user);
+            notificationService.accountLocked(user, until);
             return new AccountLockedException(until);
         }
         userRepository.save(user);

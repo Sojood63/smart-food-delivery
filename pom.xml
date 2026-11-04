@@ -18,6 +18,13 @@
     </properties>
 
     <dependencies>
+        <!-- Jakarta Mail (Eclipse Angus): sends real emails over SMTP -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
         <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
