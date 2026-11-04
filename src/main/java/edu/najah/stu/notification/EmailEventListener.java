@@ -35,12 +35,12 @@ public class EmailEventListener implements EventListener {
 
     @Override
     public void onEvent(SystemEvent event) {
-        String body = "Hi " + event.recipientName() + ",\n\n" + event.message() + SIGNATURE;
+        String name = event.recipient().getUsername();
+        String body = "Hi " + name + ",\n\n" + event.message() + SIGNATURE;
         try {
-            mailSender.send(event.recipientEmail(), event.subject(), body);
+            mailSender.send(event.recipient().getEmail(), event.subject(), body);
         } catch (MailException e) {
-            LOGGER.log(Level.WARNING, e, () -> "Email '" + event.subject() + "' was not sent to "
-                    + event.recipientName());
+            LOGGER.log(Level.WARNING, e, () -> "Email '" + event.subject() + "' was not sent to " + name);
         }
     }
 }

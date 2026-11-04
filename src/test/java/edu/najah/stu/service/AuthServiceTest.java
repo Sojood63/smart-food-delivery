@@ -2,8 +2,7 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
-import edu.najah.stu.event.AccountLockedEvent;
-import edu.najah.stu.event.CustomerRegisteredEvent;
+import edu.najah.stu.event.AccountEvent;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -139,7 +138,7 @@ class AuthServiceTest {
         assertEquals(NOON.plusMinutes(15), error.getLockedUntil());
         assertEquals("Too many wrong passwords. This account is locked until 12:15", error.getMessage());
         assertTrue(sojood.isLockedAt(NOON.plusMinutes(14)));
-        verify(events).publish(new AccountLockedEvent(sojood, 3, NOON.plusMinutes(15)));
+        verify(events).publish(AccountEvent.locked(sojood, 3, NOON.plusMinutes(15)));
     }
 
     @Test
@@ -225,7 +224,7 @@ class AuthServiceTest {
         assertEquals(Role.CUSTOMER, customer.getRole());
         assertTrue(hasher.matches("Layan2026", customer.getPasswordHash()));
         verify(repository).save(customer);
-        verify(events).publish(new CustomerRegisteredEvent(customer));
+        verify(events).publish(AccountEvent.registered(customer));
     }
 
     @Test

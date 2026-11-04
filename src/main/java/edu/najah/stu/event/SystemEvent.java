@@ -1,28 +1,22 @@
 package edu.najah.stu.event;
 
+import edu.najah.stu.domain.User;
+
 /**
  * Something that happened in the system and that a person should be told about.
  *
- * <p>Each kind of event is a small record that knows who to tell and what to
- * say. Listeners such as the email sender handle every event the same way, so
- * a new kind of email only needs a new record (Observer pattern,
- * Open/Closed principle).</p>
+ * <p>Each event knows who to tell and what to say. Listeners such as the
+ * email sender handle every event the same way, so a new kind of email only
+ * needs a new factory method (Observer pattern, Open/Closed principle).</p>
  */
 public interface SystemEvent {
 
     /**
-     * Returns the email address of the person to tell.
+     * Returns the person to tell.
      *
-     * @return the receiver's email address
+     * @return the receiver
      */
-    String recipientEmail();
-
-    /**
-     * Returns the name used to greet the person.
-     *
-     * @return the receiver's name
-     */
-    String recipientName();
+    User recipient();
 
     /**
      * Returns a short title for the event, used as the email subject.

@@ -40,7 +40,7 @@ Every important event sends an email to the person it concerns:
 
 Services only publish events (`edu.najah.stu.event`); an `EmailEventListener` subscribed to
 the `EventBus` turns each one into an email (Observer pattern). A new kind of email only
-needs a new event record.
+needs a new factory method in `AccountEvent` or `RestaurantEvent`.
 
 Emails are sent over SMTP (for example [Brevo](https://www.brevo.com), free for 300 emails a day).
 The settings are read from a `mail.properties` file next to `pom.xml`

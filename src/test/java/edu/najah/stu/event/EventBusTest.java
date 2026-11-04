@@ -1,5 +1,7 @@
 package edu.najah.stu.event;
 
+import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.User;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -17,13 +19,8 @@ class EventBusTest {
     private record TestEvent(String subject) implements SystemEvent {
 
         @Override
-        public String recipientEmail() {
-            return "a@b.co";
-        }
-
-        @Override
-        public String recipientName() {
-            return "tester";
+        public User recipient() {
+            return new User("tester", "pbkdf2$1$c2FsdA==$aGFzaA==", Role.CUSTOMER, null, "a@b.co");
         }
 
         @Override

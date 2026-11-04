@@ -2,8 +2,7 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
-import edu.najah.stu.event.AccountLockedEvent;
-import edu.najah.stu.event.CustomerRegisteredEvent;
+import edu.najah.stu.event.AccountEvent;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.repository.UserRepository;
 
@@ -112,7 +111,7 @@ public class AuthService {
         }
         User customer = new User(cleanUsername, passwordHasher.hash(password), Role.CUSTOMER, null, cleanEmail);
         userRepository.save(customer);
-        events.publish(new CustomerRegisteredEvent(customer));
+        events.publish(AccountEvent.registered(customer));
         return customer;
     }
 
@@ -122,7 +121,7 @@ public class AuthService {
             LocalDateTime until = now.plus(LOCK_TIME).withNano(0);
             user.lockUntil(until);
             userRepository.save(user);
-            events.publish(new AccountLockedEvent(user, MAX_FAILED_LOGINS, until));
+            events.publish(AccountEvent.locked(user, MAX_FAILED_LOGINS, until));
             return new AccountLockedException(until);
         }
         userRepository.save(user);

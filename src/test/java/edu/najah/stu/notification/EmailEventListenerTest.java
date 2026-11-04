@@ -2,7 +2,7 @@ package edu.najah.stu.notification;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
-import edu.najah.stu.event.CustomerRegisteredEvent;
+import edu.najah.stu.event.AccountEvent;
 import edu.najah.stu.event.EventBus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,7 +42,7 @@ class EmailEventListenerTest {
 
     @Test
     void sendsOneEmailWithGreetingMessageAndSignature() {
-        new EmailEventListener(mailSender).onEvent(new CustomerRegisteredEvent(layan));
+        new EmailEventListener(mailSender).onEvent(AccountEvent.registered(layan));
 
         verify(mailSender).send("layan@example.com", "Welcome to Smart Food Delivery", BODY);
     }
@@ -55,7 +55,7 @@ class EmailEventListenerTest {
         EventBus bus = new EventBus();
         bus.subscribe(new EmailEventListener((to, subject, body) -> sent.add(new Email(to, subject, body))));
 
-        bus.publish(new CustomerRegisteredEvent(layan));
+        bus.publish(AccountEvent.registered(layan));
 
         assertEquals(1, sent.size());
         assertEquals("layan@example.com", sent.get(0).to());
@@ -67,7 +67,7 @@ class EmailEventListenerTest {
         EmailEventListener listener = new EmailEventListener((to, subject, body) -> {
             throw new MailException("Could not send email to " + to, new IllegalStateException("offline"));
         });
-        CustomerRegisteredEvent event = new CustomerRegisteredEvent(layan);
+        AccountEvent event = AccountEvent.registered(layan);
 
         assertDoesNotThrow(() -> listener.onEvent(event));
     }

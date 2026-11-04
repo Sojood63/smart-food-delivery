@@ -10,12 +10,7 @@ import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.domain.WeeklySchedule;
 import edu.najah.stu.event.EventPublisher;
-import edu.najah.stu.event.HoursChangedEvent;
-import edu.najah.stu.event.LocationChangedEvent;
-import edu.najah.stu.event.MenuItemAddedEvent;
-import edu.najah.stu.event.MenuItemAvailabilityChangedEvent;
-import edu.najah.stu.event.MenuItemPriceChangedEvent;
-import edu.najah.stu.event.MenuItemRemovedEvent;
+import edu.najah.stu.event.RestaurantEvent;
 import edu.najah.stu.repository.RestaurantRepository;
 
 import java.math.BigDecimal;
@@ -88,7 +83,7 @@ public class RestaurantManagementService {
         }
         restaurant.changeSchedule(schedule);
         restaurantRepository.save(restaurant);
-        events.publish(new HoursChangedEvent(manager, restaurant));
+        events.publish(RestaurantEvent.hoursChanged(manager, restaurant));
         return schedule;
     }
 
@@ -112,7 +107,7 @@ public class RestaurantManagementService {
         }
         restaurant.moveTo(location);
         restaurantRepository.save(restaurant);
-        events.publish(new LocationChangedEvent(manager, restaurant, location));
+        events.publish(RestaurantEvent.locationChanged(manager, restaurant, location));
         return location;
     }
 
@@ -136,7 +131,7 @@ public class RestaurantManagementService {
         MenuItem item = new MenuItem(nextItemId(restaurant), cleanName, price, true);
         restaurant.addMenuItem(item);
         restaurantRepository.save(restaurant);
-        events.publish(new MenuItemAddedEvent(manager, restaurant, item));
+        events.publish(RestaurantEvent.itemAdded(manager, restaurant, item));
         return item;
     }
 
@@ -156,7 +151,7 @@ public class RestaurantManagementService {
         MenuItem changed = current.withPrice(newPrice);
         restaurant.replaceMenuItem(changed);
         restaurantRepository.save(restaurant);
-        events.publish(new MenuItemPriceChangedEvent(manager, restaurant, changed, current.getPrice()));
+        events.publish(RestaurantEvent.priceChanged(manager, restaurant, changed, current.getPrice()));
         return changed;
     }
 
@@ -174,7 +169,7 @@ public class RestaurantManagementService {
         MenuItem changed = findItem(restaurant, itemId).withAvailability(available);
         restaurant.replaceMenuItem(changed);
         restaurantRepository.save(restaurant);
-        events.publish(new MenuItemAvailabilityChangedEvent(manager, restaurant, changed));
+        events.publish(RestaurantEvent.availabilityChanged(manager, restaurant, changed));
         return changed;
     }
 
@@ -190,7 +185,7 @@ public class RestaurantManagementService {
         MenuItem removed = findItem(restaurant, itemId);
         restaurant.removeMenuItem(itemId);
         restaurantRepository.save(restaurant);
-        events.publish(new MenuItemRemovedEvent(manager, restaurant, removed));
+        events.publish(RestaurantEvent.itemRemoved(manager, restaurant, removed));
     }
 
     private static MenuItem findItem(Restaurant restaurant, String itemId) {

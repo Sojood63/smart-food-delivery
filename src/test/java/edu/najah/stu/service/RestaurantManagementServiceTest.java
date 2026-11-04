@@ -9,12 +9,7 @@ import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.domain.WeeklySchedule;
 import edu.najah.stu.event.EventPublisher;
-import edu.najah.stu.event.HoursChangedEvent;
-import edu.najah.stu.event.LocationChangedEvent;
-import edu.najah.stu.event.MenuItemAddedEvent;
-import edu.najah.stu.event.MenuItemAvailabilityChangedEvent;
-import edu.najah.stu.event.MenuItemPriceChangedEvent;
-import edu.najah.stu.event.MenuItemRemovedEvent;
+import edu.najah.stu.event.RestaurantEvent;
 import edu.najah.stu.repository.RestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -128,7 +123,7 @@ class RestaurantManagementServiceTest {
         assertEquals(LocalTime.of(23, 0),
                 khamees.getSchedule().hoursOn(DayOfWeek.MONDAY).orElseThrow().getClosesAt());
         verify(repository).save(khamees);
-        verify(events).publish(new HoursChangedEvent(sojood, khamees));
+        verify(events).publish(RestaurantEvent.hoursChanged(sojood, khamees));
     }
 
     @Test
@@ -159,7 +154,7 @@ class RestaurantManagementServiceTest {
 
         assertEquals(Optional.of(location), khamees.getLocation());
         verify(repository).save(khamees);
-        verify(events).publish(new LocationChangedEvent(sojood, khamees, location));
+        verify(events).publish(RestaurantEvent.locationChanged(sojood, khamees, location));
     }
 
     @Test
@@ -192,7 +187,7 @@ class RestaurantManagementServiceTest {
         assertTrue(item.isAvailable());
         assertEquals(3, khamees.getMenuItems().size());
         verify(repository).save(khamees);
-        verify(events).publish(new MenuItemAddedEvent(sojood, khamees, item));
+        verify(events).publish(RestaurantEvent.itemAdded(sojood, khamees, item));
     }
 
     @Test
@@ -231,7 +226,7 @@ class RestaurantManagementServiceTest {
         assertEquals(new BigDecimal("9.50"), item.getPrice());
         assertEquals(new BigDecimal("9.50"), khamees.findMenuItem(ID + "-2").orElseThrow().getPrice());
         verify(repository).save(khamees);
-        verify(events).publish(new MenuItemPriceChangedEvent(sojood, khamees, item, new BigDecimal("8.00")));
+        verify(events).publish(RestaurantEvent.priceChanged(sojood, khamees, item, new BigDecimal("8.00")));
     }
 
     @Test
@@ -251,7 +246,7 @@ class RestaurantManagementServiceTest {
 
         assertFalse(soldOut.isAvailable());
         assertFalse(khamees.findMenuItem(ID + "-1").orElseThrow().isAvailable());
-        verify(events).publish(new MenuItemAvailabilityChangedEvent(sojood, khamees, soldOut));
+        verify(events).publish(RestaurantEvent.availabilityChanged(sojood, khamees, soldOut));
         assertTrue(service.setAvailable(sojood, ID + "-1", true).isAvailable());
     }
 
@@ -275,7 +270,7 @@ class RestaurantManagementServiceTest {
 
         assertEquals(List.of(ID + "-2"), khamees.getMenuItems().stream().map(MenuItem::getId).toList());
         verify(repository).save(khamees);
-        verify(events).publish(new MenuItemRemovedEvent(sojood, khamees, chicken));
+        verify(events).publish(RestaurantEvent.itemRemoved(sojood, khamees, chicken));
     }
 
     @Test
