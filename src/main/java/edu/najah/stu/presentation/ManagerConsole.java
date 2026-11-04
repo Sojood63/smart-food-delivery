@@ -5,6 +5,7 @@ import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.User;
 import edu.najah.stu.service.InvalidHoursException;
 import edu.najah.stu.service.MenuItemNotFoundException;
 import edu.najah.stu.service.RestaurantManagementService;
@@ -55,14 +56,14 @@ public class ManagerConsole {
     }
 
     /**
-     * Shows the manager menu for one restaurant until the manager chooses "Back".
+     * Shows the menu for the logged-in manager's own restaurant until the manager chooses "Back".
      *
-     * @param restaurantId the restaurant the logged-in manager runs
+     * @param manager the logged-in manager
      */
-    public void run(String restaurantId) {
+    public void run(User manager) {
         Restaurant restaurant;
         try {
-            restaurant = service.getRestaurant(restaurantId);
+            restaurant = service.getRestaurant(manager);
         } catch (IllegalArgumentException | RestaurantNotFoundException e) {
             io.println("Error: " + e.getMessage());
             return;
@@ -70,22 +71,21 @@ public class ManagerConsole {
         io.println("Managing " + restaurant.getName() + " (" + restaurant.getId() + ")");
         String choice = io.ask(MENU);
         while (choice != null && !choice.equals("0")) {
-            handle(choice, restaurant);
+            handle(choice, manager, restaurant);
             choice = io.ask(MENU);
         }
     }
 
-    private void handle(String choice, Restaurant restaurant) {
-        String id = restaurant.getId();
+    private void handle(String choice, User manager, Restaurant restaurant) {
         try {
             switch (choice) {
                 case "1" -> showDetails(restaurant);
-                case "2" -> changeHours(id);
-                case "3" -> changeLocation(id);
-                case "4" -> addItem(id);
-                case "5" -> changePrice(id);
-                case "6" -> changeAvailability(id);
-                case "7" -> removeItem(id);
+                case "2" -> changeHours(manager);
+                case "3" -> changeLocation(manager);
+                case "4" -> addItem(manager);
+                case "5" -> changePrice(manager);
+                case "6" -> changeAvailability(manager);
+                case "7" -> removeItem(manager);
                 default -> io.println("Unknown choice: " + choice);
             }
         } catch (IllegalArgumentException | MenuItemNotFoundException e) {
@@ -118,44 +118,44 @@ public class ManagerConsole {
         return location.getLatitude() + ", " + location.getLongitude();
     }
 
-    private void changeHours(String id) {
+    private void changeHours(User manager) {
         String text = io.answer("New hours (example: " + InvalidHoursException.EXAMPLE + ", or 24/7):");
-        io.println("Saved. Hours: " + HoursFormatter.format(service.updateHours(id, text)));
+        io.println("Saved. Hours: " + HoursFormatter.format(service.updateHours(manager, text)));
     }
 
-    private void changeLocation(String id) {
+    private void changeLocation(User manager) {
         double latitude = number(io.answer("Latitude (example: 32.2243):")).doubleValue();
         double longitude = number(io.answer("Longitude (example: 35.2434):")).doubleValue();
-        io.println("Saved. Location: " + describe(service.updateLocation(id, latitude, longitude)));
+        io.println("Saved. Location: " + describe(service.updateLocation(manager, latitude, longitude)));
     }
 
-    private void addItem(String id) {
+    private void addItem(User manager) {
         String name = io.answer("Item name:");
         BigDecimal price = number(io.answer("Price in ILS:"));
-        MenuItem item = service.addMenuItem(id, name, price);
+        MenuItem item = service.addMenuItem(manager, name, price);
         io.println("Added " + item.getName() + " as " + item.getId());
     }
 
-    private void changePrice(String id) {
+    private void changePrice(User manager) {
         String itemId = io.answer("Item id:");
         BigDecimal price = number(io.answer("New price in ILS:"));
-        MenuItem item = service.changePrice(id, itemId, price);
+        MenuItem item = service.changePrice(manager, itemId, price);
         io.println("Saved. " + item.getName() + " now costs " + item.getPrice().toPlainString() + " ILS");
     }
 
-    private void changeAvailability(String id) {
+    private void changeAvailability(User manager) {
         String itemId = io.answer("Item id:");
         String reply = io.answer("Can customers order it now? (yes/no):").toLowerCase(Locale.ROOT);
         if (!reply.equals("yes") && !reply.equals("no")) {
             throw new IllegalArgumentException("Please answer yes or no");
         }
-        MenuItem item = service.setAvailable(id, itemId, reply.equals("yes"));
+        MenuItem item = service.setAvailable(manager, itemId, reply.equals("yes"));
         io.println("Saved. " + item.getName() + (item.isAvailable() ? " is available" : " is not available"));
     }
 
-    private void removeItem(String id) {
+    private void removeItem(User manager) {
         String itemId = io.answer("Item id to remove for good:");
-        service.removeMenuItem(id, itemId);
+        service.removeMenuItem(manager, itemId);
         io.println("Removed " + itemId);
     }
 

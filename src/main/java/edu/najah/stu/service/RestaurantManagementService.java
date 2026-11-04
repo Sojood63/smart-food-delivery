@@ -6,19 +6,29 @@ import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.User;
 import edu.najah.stu.domain.WeeklySchedule;
+import edu.najah.stu.event.EventPublisher;
+import edu.najah.stu.event.HoursChangedEvent;
+import edu.najah.stu.event.LocationChangedEvent;
+import edu.najah.stu.event.MenuItemAddedEvent;
+import edu.najah.stu.event.MenuItemAvailabilityChangedEvent;
+import edu.najah.stu.event.MenuItemPriceChangedEvent;
+import edu.najah.stu.event.MenuItemRemovedEvent;
 import edu.najah.stu.repository.RestaurantRepository;
 
 import java.math.BigDecimal;
 import java.util.Locale;
-import java.util.function.UnaryOperator;
 
 /**
  * Lets a restaurant's manager change its opening hours, location and menu.
  *
- * <p>Every change is checked first and saved right away, so it is still
- * there after the program restarts. A rejected change leaves the restaurant
- * as it was and saves nothing.</p>
+ * <p>Every method takes the logged-in manager and works only on that
+ * manager's own restaurant, so one manager can never change another
+ * restaurant. Every change is checked first, saved right away, and then
+ * published as an event, so the manager gets a confirmation email. A rejected
+ * change leaves the restaurant as it was, saves nothing and sends nothing.</p>
  */
 public class RestaurantManagementService {
 
@@ -28,30 +38,35 @@ public class RestaurantManagementService {
     private static final int MAX_ITEM_NUMBER_DIGITS = 9;
 
     private final RestaurantRepository restaurantRepository;
+    private final EventPublisher events;
 
     /**
      * Creates the service.
      *
      * @param restaurantRepository where restaurants are stored; must not be null
+     * @param events               where changes are published; must not be null
      */
-    public RestaurantManagementService(RestaurantRepository restaurantRepository) {
-        if (restaurantRepository == null) {
-            throw new IllegalArgumentException("Restaurant repository must not be null");
+    public RestaurantManagementService(RestaurantRepository restaurantRepository, EventPublisher events) {
+        if (restaurantRepository == null || events == null) {
+            throw new IllegalArgumentException("Restaurant repository and events must not be null");
         }
         this.restaurantRepository = restaurantRepository;
+        this.events = events;
     }
 
     /**
-     * Finds the restaurant the manager wants to work on.
+     * Finds the restaurant that a manager runs.
      *
-     * @param restaurantId the restaurant id; must not be empty
-     * @return the restaurant
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @param manager the logged-in manager
+     * @return the manager's restaurant
+     * @throws IllegalArgumentException    if the user is missing or not a manager
+     * @throws RestaurantNotFoundException if the manager's restaurant does not exist
      */
-    public Restaurant getRestaurant(String restaurantId) {
-        if (restaurantId == null || restaurantId.isBlank()) {
-            throw new IllegalArgumentException("Restaurant id must not be empty");
+    public Restaurant getRestaurant(User manager) {
+        if (manager == null || manager.getRole() != Role.MANAGER) {
+            throw new IllegalArgumentException("Only a restaurant manager can do this");
         }
+        String restaurantId = manager.getRestaurantId().orElseThrow();
         return restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RestaurantNotFoundException(restaurantId));
     }
@@ -60,35 +75,34 @@ public class RestaurantManagementService {
      * Sets new opening hours typed by the manager. The hours are marked as
      * coming from the manager, so they win over the map and estimates.
      *
-     * @param restaurantId the restaurant to change
-     * @param hoursText    the hours, for example {@code "Sa-Th 09:00-23:00; Fr off"} or {@code "24/7"}
+     * @param manager   the logged-in manager
+     * @param hoursText the hours, for example {@code "Sa-Th 09:00-23:00; Fr off"} or {@code "24/7"}
      * @return the new schedule
-     * @throws InvalidHoursException       if the text cannot be read
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @throws InvalidHoursException if the text cannot be read
      */
-    public WeeklySchedule updateHours(String restaurantId, String hoursText) {
-        Restaurant restaurant = getRestaurant(restaurantId);
+    public WeeklySchedule updateHours(User manager, String hoursText) {
+        Restaurant restaurant = getRestaurant(manager);
         WeeklySchedule schedule = HoursParser.parse(hoursText, HoursSource.MANUAL);
         if (schedule.getSource() == HoursSource.UNKNOWN) {
             throw new InvalidHoursException(hoursText);
         }
         restaurant.changeSchedule(schedule);
         restaurantRepository.save(restaurant);
+        events.publish(new HoursChangedEvent(manager, restaurant));
         return schedule;
     }
 
     /**
      * Sets where the restaurant is, so customers can find it by distance.
      *
-     * @param restaurantId the restaurant to change
-     * @param latitude     latitude in degrees
-     * @param longitude    longitude in degrees
+     * @param manager   the logged-in manager
+     * @param latitude  latitude in degrees
+     * @param longitude longitude in degrees
      * @return the new location
-     * @throws IllegalArgumentException    if the coordinates are invalid or too far from Nablus
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @throws IllegalArgumentException if the coordinates are invalid or too far from Nablus
      */
-    public Location updateLocation(String restaurantId, double latitude, double longitude) {
-        Restaurant restaurant = getRestaurant(restaurantId);
+    public Location updateLocation(User manager, double latitude, double longitude) {
+        Restaurant restaurant = getRestaurant(manager);
         Location location = new Location(latitude, longitude);
         double distanceKm = location.distanceKmTo(Landmark.OLD_CAMPUS.getLocation());
         if (distanceKm > MAX_KM_FROM_NABLUS) {
@@ -98,21 +112,21 @@ public class RestaurantManagementService {
         }
         restaurant.moveTo(location);
         restaurantRepository.save(restaurant);
+        events.publish(new LocationChangedEvent(manager, restaurant, location));
         return location;
     }
 
     /**
      * Adds a new item to the menu. It can be ordered straight away.
      *
-     * @param restaurantId the restaurant to change
-     * @param name         the item name; extra spaces are removed
-     * @param price        the unit price; must be greater than zero
+     * @param manager the logged-in manager
+     * @param name    the item name; extra spaces are removed
+     * @param price   the unit price; must be greater than zero
      * @return the new item, with a new id such as {@code manual-63-4}
-     * @throws IllegalArgumentException    if the name is empty, already on the menu, or the price is not positive
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @throws IllegalArgumentException if the name is empty, already on the menu, or the price is not positive
      */
-    public MenuItem addMenuItem(String restaurantId, String name, BigDecimal price) {
-        Restaurant restaurant = getRestaurant(restaurantId);
+    public MenuItem addMenuItem(User manager, String name, BigDecimal price) {
+        Restaurant restaurant = getRestaurant(manager);
         String cleanName = cleanName(name);
         boolean nameTaken = restaurant.getMenuItems().stream()
                 .anyMatch(item -> item.getName().equalsIgnoreCase(cleanName));
@@ -122,62 +136,66 @@ public class RestaurantManagementService {
         MenuItem item = new MenuItem(nextItemId(restaurant), cleanName, price, true);
         restaurant.addMenuItem(item);
         restaurantRepository.save(restaurant);
+        events.publish(new MenuItemAddedEvent(manager, restaurant, item));
         return item;
     }
 
     /**
      * Changes the price of a menu item.
      *
-     * @param restaurantId the restaurant to change
-     * @param itemId       the item to change
-     * @param newPrice     the new price; must be greater than zero
+     * @param manager  the logged-in manager
+     * @param itemId   the item to change
+     * @param newPrice the new price; must be greater than zero
      * @return the changed item
-     * @throws IllegalArgumentException    if the price is not positive
-     * @throws MenuItemNotFoundException   if the item is not on the menu
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @throws IllegalArgumentException  if the price is not positive
+     * @throws MenuItemNotFoundException if the item is not on the menu
      */
-    public MenuItem changePrice(String restaurantId, String itemId, BigDecimal newPrice) {
-        return changeItem(restaurantId, itemId, item -> item.withPrice(newPrice));
+    public MenuItem changePrice(User manager, String itemId, BigDecimal newPrice) {
+        Restaurant restaurant = getRestaurant(manager);
+        MenuItem current = findItem(restaurant, itemId);
+        MenuItem changed = current.withPrice(newPrice);
+        restaurant.replaceMenuItem(changed);
+        restaurantRepository.save(restaurant);
+        events.publish(new MenuItemPriceChangedEvent(manager, restaurant, changed, current.getPrice()));
+        return changed;
     }
 
     /**
      * Makes a menu item orderable or not, for example when it runs out for the day.
      *
-     * @param restaurantId the restaurant to change
-     * @param itemId       the item to change
-     * @param available    {@code true} if customers can order it
+     * @param manager   the logged-in manager
+     * @param itemId    the item to change
+     * @param available {@code true} if customers can order it
      * @return the changed item
-     * @throws MenuItemNotFoundException   if the item is not on the menu
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @throws MenuItemNotFoundException if the item is not on the menu
      */
-    public MenuItem setAvailable(String restaurantId, String itemId, boolean available) {
-        return changeItem(restaurantId, itemId, item -> item.withAvailability(available));
+    public MenuItem setAvailable(User manager, String itemId, boolean available) {
+        Restaurant restaurant = getRestaurant(manager);
+        MenuItem changed = findItem(restaurant, itemId).withAvailability(available);
+        restaurant.replaceMenuItem(changed);
+        restaurantRepository.save(restaurant);
+        events.publish(new MenuItemAvailabilityChangedEvent(manager, restaurant, changed));
+        return changed;
     }
 
     /**
      * Removes an item from the menu for good.
      *
-     * @param restaurantId the restaurant to change
-     * @param itemId       the item to remove
-     * @throws MenuItemNotFoundException   if the item is not on the menu
-     * @throws RestaurantNotFoundException if no restaurant has that id
+     * @param manager the logged-in manager
+     * @param itemId  the item to remove
+     * @throws MenuItemNotFoundException if the item is not on the menu
      */
-    public void removeMenuItem(String restaurantId, String itemId) {
-        Restaurant restaurant = getRestaurant(restaurantId);
-        if (!restaurant.removeMenuItem(itemId)) {
-            throw new MenuItemNotFoundException(restaurantId, itemId);
-        }
+    public void removeMenuItem(User manager, String itemId) {
+        Restaurant restaurant = getRestaurant(manager);
+        MenuItem removed = findItem(restaurant, itemId);
+        restaurant.removeMenuItem(itemId);
         restaurantRepository.save(restaurant);
+        events.publish(new MenuItemRemovedEvent(manager, restaurant, removed));
     }
 
-    private MenuItem changeItem(String restaurantId, String itemId, UnaryOperator<MenuItem> change) {
-        Restaurant restaurant = getRestaurant(restaurantId);
-        MenuItem current = restaurant.findMenuItem(itemId)
-                .orElseThrow(() -> new MenuItemNotFoundException(restaurantId, itemId));
-        MenuItem changed = change.apply(current);
-        restaurant.replaceMenuItem(changed);
-        restaurantRepository.save(restaurant);
-        return changed;
+    private static MenuItem findItem(Restaurant restaurant, String itemId) {
+        return restaurant.findMenuItem(itemId)
+                .orElseThrow(() -> new MenuItemNotFoundException(restaurant.getId(), itemId));
     }
 
     private static String cleanName(String name) {

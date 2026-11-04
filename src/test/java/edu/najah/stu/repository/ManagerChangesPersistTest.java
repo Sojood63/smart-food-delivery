@@ -4,14 +4,20 @@ import edu.najah.stu.domain.Cuisine;
 import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.User;
 import edu.najah.stu.domain.WeeklySchedule;
+import edu.najah.stu.event.EventBus;
+import edu.najah.stu.event.SystemEvent;
 import edu.najah.stu.service.RestaurantManagementService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,6 +34,16 @@ class ManagerChangesPersistTest {
     @TempDir
     Path folder;
 
+    private final User owner = new User("sojood", "pbkdf2$1$c2FsdA==$aGFzaA==", Role.MANAGER, "manual-10",
+            "sojood@example.com");
+    private final List<SystemEvent> published = new ArrayList<>();
+    private final EventBus events = new EventBus();
+
+    @BeforeEach
+    void listenToEvents() {
+        events.subscribe(published::add);
+    }
+
     private FileRestaurantRepository open() {
         return new FileRestaurantRepository(folder.resolve("restaurants.txt"), folder.resolve("menu_items.txt"));
     }
@@ -42,13 +58,13 @@ class ManagerChangesPersistTest {
     void everyKindOfChangeSurvivesARestart() {
         FileRestaurantRepository repository = open();
         repository.save(restaurant("manual-10"));
-        RestaurantManagementService manager = new RestaurantManagementService(repository);
+        RestaurantManagementService manager = new RestaurantManagementService(repository, events);
 
-        manager.updateHours("manual-10", "Sa-Th 10:00-01:00; Fr 13:00-01:00");
-        manager.updateLocation("manual-10", 32.2234638, 35.2397614);
-        manager.addMenuItem("manual-10", "Grilled chicken", new BigDecimal("35"));
-        manager.changePrice("manual-10", "manual-10-1", new BigDecimal("22.5"));
-        manager.setAvailable("manual-10", "manual-10-2", false);
+        manager.updateHours(owner, "Sa-Th 10:00-01:00; Fr 13:00-01:00");
+        manager.updateLocation(owner, 32.2234638, 35.2397614);
+        manager.addMenuItem(owner, "Grilled chicken", new BigDecimal("35"));
+        manager.changePrice(owner, "manual-10-1", new BigDecimal("22.5"));
+        manager.setAvailable(owner, "manual-10-2", false);
 
         Restaurant reopened = open().findById("manual-10").orElseThrow();
         assertEquals(HoursSource.MANUAL, reopened.getSchedule().getSource());
@@ -56,18 +72,21 @@ class ManagerChangesPersistTest {
         assertEquals(32.2234638, reopened.getLocation().orElseThrow().getLatitude());
         assertEquals(new BigDecimal("22.50"), reopened.findMenuItem("manual-10-1").orElseThrow().getPrice());
         assertFalse(reopened.findMenuItem("manual-10-2").orElseThrow().isAvailable());
+        assertEquals(List.of("Opening hours updated: Place manual-10", "Location updated: Place manual-10",
+                        "New menu item: Grilled chicken", "Price changed: Kebab", "Grilled chicken is now unavailable"),
+                published.stream().map(SystemEvent::subject).toList());
     }
 
     @Test
     void removedItemStaysRemovedAndItsNumberIsNotReused() {
         FileRestaurantRepository repository = open();
         repository.save(restaurant("manual-10"));
-        RestaurantManagementService manager = new RestaurantManagementService(repository);
-        manager.addMenuItem("manual-10", "Salad", new BigDecimal("7"));
+        RestaurantManagementService manager = new RestaurantManagementService(repository, events);
+        manager.addMenuItem(owner, "Salad", new BigDecimal("7"));
 
-        manager.removeMenuItem("manual-10", "manual-10-1");
-        RestaurantManagementService afterRestart = new RestaurantManagementService(open());
-        MenuItem added = afterRestart.addMenuItem("manual-10", "Soup", new BigDecimal("9"));
+        manager.removeMenuItem(owner, "manual-10-1");
+        RestaurantManagementService afterRestart = new RestaurantManagementService(open(), events);
+        MenuItem added = afterRestart.addMenuItem(owner, "Soup", new BigDecimal("9"));
 
         assertEquals("manual-10-3", added.getId());
         assertEquals(List.of("manual-10-2", "manual-10-3"),
@@ -78,7 +97,7 @@ class ManagerChangesPersistTest {
     void replaceAllForgetsOldRestaurantsAndChanges() {
         FileRestaurantRepository repository = open();
         repository.saveAll(List.of(restaurant("manual-10"), restaurant("manual-11")));
-        new RestaurantManagementService(repository).changePrice("manual-10", "manual-10-1", BigDecimal.ONE);
+        new RestaurantManagementService(repository, events).changePrice(owner, "manual-10-1", BigDecimal.ONE);
 
         repository.replaceAll(List.of(restaurant("manual-10")));
 
