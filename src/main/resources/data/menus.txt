@@ -1,3 +1,141 @@
 # Real menus collected by the team. Columns: restaurant_id|item_name|price_nis|available
 # restaurant_id comes from restaurants.txt. price_nis like 12 or 12.50. available is yes or no.
 # Restaurants with no lines here simply have no menu yet.
+#
+# Source: the team's document "Nablus Restaurants Menus and Prices" (November 2026).
+# Prices for Orgada and KFC Academy come from their menus on the Yummy app, and for Vienna
+# from its menu published online. All other prices are realistic estimates, not official
+# prices. Real availability could not be checked, so a few items are marked "no" on purpose
+# to show that unavailable items are hidden from customers (US1.3).
+
+# Ward Restaurant (estimated)
+manual-02|برغر لحم|30|yes
+manual-02|برغر دجاج|27|yes
+manual-02|شاورما دجاج|22|yes
+manual-02|بيتزا خضار|28|no
+manual-02|سلطة سيزر|20|yes
+
+# Orgada (Yummy menu: sandwich / meal)
+manual-03|Travel Beef Burger - sandwich|33|yes
+manual-03|Travel Beef Burger - meal|39|yes
+manual-03|Asado Beef Burger - sandwich|35|yes
+manual-03|Asado Beef Burger - meal|41|yes
+manual-03|Roca White Burger - sandwich|31|yes
+manual-03|Roca White Burger - meal|37|yes
+manual-03|Mexicano Chicken - sandwich|29|yes
+manual-03|Mexicano Chicken - meal|35|yes
+manual-03|Pesto Chicken - sandwich|29|yes
+manual-03|Pesto Chicken - meal|35|yes
+manual-03|Royal Chicken - sandwich|28|yes
+manual-03|Royal Chicken - meal|34|no
+
+# Jaltah (estimated)
+manual-04|كلاسيك برغر|28|yes
+manual-04|تشيز برغر|32|yes
+manual-04|دبل برغر|38|yes
+manual-04|كريسبي تشكن|27|yes
+manual-04|بطاطا مقلية|12|yes
+
+# Abusair Pastries (estimated)
+manual-08|فطيرة جبنة|8|yes
+manual-08|فطيرة زعتر|6|yes
+manual-08|فطيرة محمرة|7|yes
+manual-08|بيتزا صغيرة|10|yes
+manual-08|كرواسون شوكولاتة|8|no
+
+# Vienna Restaurant (published menu)
+manual-17|سلطة جليلية|30|yes
+manual-17|سلطة حلوم|32|yes
+manual-17|سلطة سيزر لبنانية|33|yes
+manual-17|فتوش|26|yes
+manual-17|تبولة|22|yes
+manual-17|آيس لاتيه|18|yes
+
+# Atteca Restaurant & Caffe (estimated)
+manual-20|برغر لحم|32|yes
+manual-20|ساندويش دجاج|25|yes
+manual-20|باستا ألفريدو|30|yes
+manual-20|سلطة سيزر|22|yes
+manual-20|موهيتو|18|yes
+
+# Pizza TIME (items from the published menu, estimated prices)
+manual-26|مارغريتا|25|yes
+manual-26|بيبروني|32|yes
+manual-26|بيتزا خضار|30|yes
+manual-26|باستا ألفريدو|28|yes
+manual-26|كالزوني|30|no
+manual-26|بطاطا ودجز|12|yes
+
+# Kan Ya Makan Restaurant (estimated)
+manual-27|مشاوي مشكلة|55|yes
+manual-27|كباب|40|yes
+manual-27|شيش طاووق|38|yes
+manual-27|مقلوبة دجاج|35|yes
+manual-27|فتة حمص|25|yes
+
+# Berlin Restaurant (estimated)
+manual-29|برغر كلاسيك|28|yes
+manual-29|تشيز برغر|32|yes
+manual-29|زنجر دجاج|25|yes
+manual-29|وجبة دجاج|32|yes
+manual-29|بطاطا مقلية|10|yes
+
+# 1948 Restaurant (estimated)
+manual-30|وجبة دجاج مشوي|35|yes
+manual-30|كباب|40|yes
+manual-30|شيش طاووق|38|yes
+manual-30|برغر لحم|30|yes
+manual-30|سلطة عربية|15|yes
+
+# 90s Burger (estimated)
+manual-34|كلاسيك برغر|28|yes
+manual-34|تشيز برغر|32|yes
+manual-34|دبل برغر|39|yes
+manual-34|كريسبي تشكن برغر|27|yes
+manual-34|بطاطا مقلية|12|yes
+
+# Snack Bistnak (estimated)
+manual-40|زنجر ساندويش|22|yes
+manual-40|كلوب ساندويش|25|yes
+manual-40|برغر|25|yes
+manual-40|بطاطا مقلية|10|yes
+manual-40|ناغتس دجاج|20|yes
+
+# KFC - Academy Street (Yummy menu)
+manual-41|وجبة ريزو|25|yes
+manual-41|كريسبي ستريبس 4 قطع|31|yes
+manual-41|كريسبي ستريبس 5 قطع|35|yes
+manual-41|وجبة كولونيل|34|yes
+manual-41|وجبة بيرسونال|28|yes
+manual-41|زنجر برغر|20|yes
+manual-41|زنجر تشيز برغر|22|yes
+manual-41|بوكس ماستر ساندويش|24|yes
+
+# A' Al-Tareeq (estimated)
+manual-45|إسبريسو|8|yes
+manual-45|أمريكانو|10|yes
+manual-45|كابتشينو|14|yes
+manual-45|لاتيه|15|yes
+manual-45|موكا|17|yes
+manual-45|آيس كوفي|16|yes
+
+# Annab (estimated)
+manual-59|مشاوي مشكلة|55|yes
+manual-59|كباب|40|yes
+manual-59|شيش طاووق|38|yes
+manual-59|دجاج على الفحم|35|yes
+manual-59|سلطة عربية|15|yes
+
+# Khamees (estimated)
+manual-63|وجبة مشاوي|50|yes
+manual-63|كباب|38|yes
+manual-63|شيش طاووق|38|yes
+manual-63|وجبة دجاج|32|yes
+manual-63|حمص|12|yes
+
+# Alf Lila wa Lila (estimated)
+manual-65|مشاوي مشكلة|55|yes
+manual-65|كباب|40|yes
+manual-65|شيش طاووق|38|yes
+manual-65|فتة حمص|25|yes
+manual-65|سلطة عربية|15|yes

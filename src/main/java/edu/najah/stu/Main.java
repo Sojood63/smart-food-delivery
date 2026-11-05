@@ -1,22 +1,20 @@
 package edu.najah.stu;
 
-import edu.najah.stu.domain.Landmark;
-import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.event.EventBus;
 import edu.najah.stu.notification.EmailEventListener;
 import edu.najah.stu.notification.MailSenders;
+import edu.najah.stu.presentation.CustomerConsole;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
-import edu.najah.stu.presentation.RestaurantFormatter;
 import edu.najah.stu.repository.BundledUsers;
 import edu.najah.stu.repository.DataStore;
 import edu.najah.stu.repository.FileRestaurantRepository;
 import edu.najah.stu.repository.FileUserRepository;
 import edu.najah.stu.repository.RestaurantImporter;
 import edu.najah.stu.service.AuthService;
-import edu.najah.stu.service.NearbyRestaurant;
+import edu.najah.stu.service.MenuService;
 import edu.najah.stu.service.Pbkdf2PasswordHasher;
 import edu.najah.stu.service.RestaurantManagementService;
 import edu.najah.stu.service.RestaurantService;
@@ -24,20 +22,13 @@ import edu.najah.stu.service.SystemTimeProvider;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
 public class Main {
 
-    private static final double SEARCH_RADIUS_KM = 1.5;
-    private static final int NAMES_TO_SHOW = 10;
     private static final Path DATA_FOLDER = Path.of("data");
     private static final Path MAIL_SETTINGS = Path.of("mail.properties");
-    private static final String CUSTOMER_MENU = String.join(System.lineSeparator(),
-            "",
-            "1) Open restaurants near An-Najah",
-            "0) Log out");
     private static final String MANAGER_MENU = String.join(System.lineSeparator(),
             "",
             "1) Manage my restaurant",
@@ -50,6 +41,8 @@ public class Main {
     private final RestaurantService restaurantService = new RestaurantService(restaurants, new SystemTimeProvider());
     private final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
     private final EventBus events = new EventBus();
+    private final CustomerConsole customerConsole = new CustomerConsole(restaurantService,
+            new MenuService(restaurants), in, System.out);
     private final ManagerConsole managerConsole =
             new ManagerConsole(new RestaurantManagementService(restaurants, events), in, System.out);
 
@@ -70,7 +63,7 @@ public class Main {
             if (user.get().getRole() == Role.MANAGER) {
                 managerMenu(user.get());
             } else {
-                customerMenu();
+                customerConsole.run();
             }
             System.out.println("Logged out.");
             user = loginConsole.run();
@@ -83,24 +76,12 @@ public class Main {
         return in.hasNextLine() ? in.nextLine().trim() : "0";
     }
 
-    private void customerMenu() {
-        String choice = ask(CUSTOMER_MENU);
-        while (!choice.equals("0")) {
-            if (choice.equals("1")) {
-                printNearby();
-            } else {
-                System.out.println("Unknown choice: " + choice);
-            }
-            choice = ask(CUSTOMER_MENU);
-        }
-    }
-
     private void managerMenu(User manager) {
         String choice = ask(MANAGER_MENU);
         while (!choice.equals("0")) {
             switch (choice) {
                 case "1" -> managerConsole.run(manager);
-                case "2" -> printNearby();
+                case "2" -> customerConsole.printNearby();
                 case "3" -> reload();
                 default -> System.out.println("Unknown choice: " + choice);
             }
@@ -115,30 +96,6 @@ public class Main {
             System.out.println("Reloaded " + restaurants.findAll().size() + " restaurants.");
         } else {
             System.out.println("Nothing changed.");
-        }
-    }
-
-    private void printNearby() {
-        for (Landmark landmark : Landmark.values()) {
-            List<NearbyRestaurant> results = restaurantService.findNearby(landmark.getLocation(), SEARCH_RADIUS_KM);
-            System.out.println();
-            System.out.println("Open restaurants within " + SEARCH_RADIUS_KM + " km of "
-                    + landmark.getDisplayName() + ":");
-            if (results.isEmpty()) {
-                System.out.println("   (none open right now)");
-            }
-            results.forEach(result -> System.out.println(" * " + RestaurantFormatter.format(result)));
-        }
-
-        List<Restaurant> openWithoutLocation = restaurantService.getOpenRestaurants().stream()
-                .filter(restaurant -> restaurant.getLocation().isEmpty())
-                .toList();
-        System.out.println();
-        System.out.println("Also open now, location not known yet (" + openWithoutLocation.size() + "):");
-        openWithoutLocation.stream().limit(NAMES_TO_SHOW)
-                .forEach(restaurant -> System.out.println(" * " + restaurant.getName()));
-        if (openWithoutLocation.size() > NAMES_TO_SHOW) {
-            System.out.println("   ... and " + (openWithoutLocation.size() - NAMES_TO_SHOW) + " more");
         }
     }
 }

@@ -3,6 +3,15 @@
 A console food delivery system for restaurants near An-Najah National University, Nablus.
 Built with Java 17, Maven, JUnit 5, Mockito and JaCoCo, checked by GitHub Actions and SonarCloud.
 
+## Sprint 1 features
+
+| User story | What the program does |
+|------------|-----------------------|
+| US1.1 Customer/Manager login | Log in with hashed passwords; a wrong login shows an error; 3 wrong passwords lock the account for 15 minutes; customers can sign up |
+| US1.2 View available restaurants | Only open restaurants are shown, nearest first from each An-Najah campus, with distance, walking time and a "closing soon" warning |
+| US1.3 View restaurant menu | A customer picks an open restaurant and sees only the items that can be ordered now, with prices |
+| Extra: manager panel | A manager changes their own restaurant's hours, location and menu; every change is saved and emailed |
+
 ## Run
 
 ```

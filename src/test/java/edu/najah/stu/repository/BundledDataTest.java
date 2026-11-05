@@ -63,4 +63,16 @@ class BundledDataTest {
     void nafasIsClosedOnFriday() {
         assertEquals(Optional.empty(), byId.get("manual-06").getSchedule().hoursOn(DayOfWeek.FRIDAY));
     }
+
+    @Test
+    void seventeenRestaurantsHaveARealMenu() {
+        assertEquals(17, restaurants.stream().filter(restaurant -> !restaurant.getMenuItems().isEmpty()).count());
+        assertEquals(98, restaurants.stream().mapToLong(restaurant -> restaurant.getMenuItems().size()).sum());
+    }
+
+    @Test
+    void someItemsAreUnavailableToShowTheyAreHidden() {
+        assertEquals(4, restaurants.stream().flatMap(restaurant -> restaurant.getMenuItems().stream())
+                .filter(item -> !item.isAvailable()).count());
+    }
 }
