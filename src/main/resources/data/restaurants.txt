@@ -18,7 +18,7 @@ manual-13|Ekleel Alward|SWEETS|||"Always open" in spreadsheet - hours not known
 manual-14|Attawfeeq Sweets|SWEETS||433076235|"Always open" in spreadsheet - hours not known
 manual-15|Ghuroub Restaurant|OTHER|Mo-Su 09:00-23:45||
 manual-16|Mandalina|SWEETS|Mo-Su 10:00-23:59||
-manual-17|Vienna Restaurant|OTHER|Mo-Th,Sa-Su 10:00-23:59; Fr 12:00-23:59|14116383475|
+manual-17|Vienna Restaurant|CAFE|Mo-Th,Sa-Su 10:00-23:59; Fr 12:00-23:59|14116383475|
 manual-18|Fradis Restaurant|OTHER|Mo-Su 11:55-23:30||
 manual-19|Restaurant & Cafe 360|CAFE|||"Always open" in spreadsheet - hours not known
 manual-20|Atteca Restaurant & Caffe (أتيكا)|CAFE|Mo-Th,Sa-Su 08:00-00:00; Fr 18:00-00:00||
@@ -31,7 +31,7 @@ manual-26|Pizza TIME|PIZZA|Mo-Th,Sa-Su 09:00-00:00; Fr 12:00-23:59|4939629521|
 manual-27|Kan Ya Makan Restaurant|PALESTINIAN|Mo-Th,Sa-Su 09:00-03:00; Fr 11:00-00:30|433076399|closing 3:00 could be 03:00 or 15:00
 manual-28|Shisha & Manousheh|CAFE|Mo-Fr,Su 09:00-23:00; Sa 08:00-23:00||
 manual-29|Berlin Restaurant|PIZZA|Mo-Su 10:00-23:30|6484742987|
-manual-30|1948 Restaurant|OTHER|Mo-Su 09:00-01:00|13422150401|
+manual-30|1948 Restaurant|GRILL|Mo-Su 09:00-01:00|13422150401|
 manual-31|Mr. Ezz Restaurant|OTHER|Mo-Su 06:00-01:00||
 manual-32|Alsaraya Sweets– Rafidia|SWEETS|Mo-Su 09:00-23:00||
 manual-33|Vanilla|SWEETS|Mo-Th,Sa-Su 06:30-00:00; Fr 13:30-00:00||
@@ -60,11 +60,11 @@ manual-55|Mr. Baker|SWEETS|||"Always open" in spreadsheet - hours not known
 manual-56|عطر الشام|OTHER|||"Always open" in spreadsheet - hours not known
 manual-57|مطبخ بيت أمي|PALESTINIAN|Mo-Su 08:00-17:00||closing 5:00 could be 05:00 or 17:00
 manual-58|Neapolis Restaurant|OTHER|||"Always open" in spreadsheet - hours not known
-manual-59|Annab|OTHER|Mo-Su 09:00-23:00|5650682021|
+manual-59|Annab|GRILL|Mo-Su 09:00-23:00|5650682021|
 manual-60|ZODIAC Restaurant and Cafe|CAFE|||"Always open" in spreadsheet - hours not known
 manual-61|خان الوكالة|PALESTINIAN|||"Always open" in spreadsheet - hours not known
 manual-62|Wakeup Coffee|CAFE|||"Always open" in spreadsheet - hours not known
-manual-63|مطعم خميس|OTHER|Mo-Su 07:00-00:00|5347793623|
+manual-63|مطعم خميس|GRILL|Mo-Su 07:00-00:00|5347793623|
 manual-64|القوقا – Quqa Sale|SWEETS|Mo-Th,Sa-Su 10:00-22:00; Fr 17:00-22:00||
 manual-65|مطعم ألف ليلة وليلة|PALESTINIAN|Mo-Th,Sa-Su 10:00-23:30; Fr 12:00-23:30|4023691957|
 manual-66|Trio Shawarma|SHAWARMA|Mo-Th,Sa-Su 08:00-01:00; Fr 14:00-02:00||
