@@ -1,7 +1,7 @@
 package edu.najah.stu.domain;
 
 /**
- * Rides a motorcycle: the fastest in town, for medium distances.
+ * Rides a motorcycle: the fastest in town, for medium trips (8 km, 10 items).
  */
 public class MotorcycleDriver extends Driver {
 
@@ -13,26 +13,11 @@ public class MotorcycleDriver extends Driver {
      * @param location where the driver is now
      */
     public MotorcycleDriver(String id, String name, Location location) {
-        super(id, name, location);
+        super(id, name, location, 35, 8, 10);
     }
 
     @Override
     public String vehicle() {
         return "Motorcycle";
-    }
-
-    @Override
-    public double speedKmh() {
-        return 35;
-    }
-
-    @Override
-    public double maxDistanceKm() {
-        return 8;
-    }
-
-    @Override
-    public int maxItems() {
-        return 10;
     }
 }

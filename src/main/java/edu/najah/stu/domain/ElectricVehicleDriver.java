@@ -2,7 +2,7 @@ package edu.najah.stu.domain;
 
 /**
  * Drives an electric car: like a car, but the battery must have enough range
- * to reach the restaurant, deliver, and come back.
+ * to reach the customer and come back.
  */
 public class ElectricVehicleDriver extends Driver {
 
@@ -17,7 +17,7 @@ public class ElectricVehicleDriver extends Driver {
      * @param rangeKm  how far the battery can still go, in km; zero or more
      */
     public ElectricVehicleDriver(String id, String name, Location location, double rangeKm) {
-        super(id, name, location);
+        super(id, name, location, 30, 20, 30);
         if (rangeKm < 0) {
             throw new IllegalArgumentException("Battery range must be zero or more");
         }
@@ -25,9 +25,9 @@ public class ElectricVehicleDriver extends Driver {
     }
 
     /**
-     * Returns how far the battery can still go, in km.
+     * Returns how far the battery can still go.
      *
-     * @return how far the battery can still go, in km
+     * @return the range in km
      */
     public double getRangeKm() {
         return rangeKm;
@@ -36,21 +36,6 @@ public class ElectricVehicleDriver extends Driver {
     @Override
     public String vehicle() {
         return "Electric vehicle";
-    }
-
-    @Override
-    public double speedKmh() {
-        return 30;
-    }
-
-    @Override
-    public double maxDistanceKm() {
-        return 20;
-    }
-
-    @Override
-    public int maxItems() {
-        return 30;
     }
 
     /**
