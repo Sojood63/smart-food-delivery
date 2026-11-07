@@ -1,6 +1,5 @@
 package edu.najah.stu.event;
 
-import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.User;
 
@@ -38,7 +37,8 @@ public record OrderEvent(User recipient, Order order, String subject, String mes
      */
     public static OrderEvent newOrderForRestaurant(User manager, Order order) {
         return new OrderEvent(manager, order, "New order " + order.getId(),
-                order.getCustomer().getUsername() + " ordered " + order.itemCount() + " items. Please confirm it.");
+                order.getCustomer().getUsername() + " ordered " + order.itemCount() + " items ("
+                        + order.getType().name() + "). Please confirm it.");
     }
 
     /**
@@ -69,7 +69,7 @@ public record OrderEvent(User recipient, Order order, String subject, String mes
      * @return the event for the customer
      */
     public static OrderEvent driverAssigned(Order order) {
-        String driver = order.getDriver().map(Driver::getName).orElse("A driver");
+        String driver = order.getDriver().map(d -> d.getName() + " (" + d.vehicle() + ")").orElse("A driver");
         return new OrderEvent(order.getCustomer(), order, ORDER + order.getId() + ": driver assigned",
                 driver + " will deliver your order.");
     }

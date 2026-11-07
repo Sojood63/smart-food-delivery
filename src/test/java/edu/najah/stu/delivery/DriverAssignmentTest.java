@@ -1,12 +1,17 @@
 package edu.najah.stu.delivery;
 
 import edu.najah.stu.OrderTestData;
+import edu.najah.stu.domain.BicycleDriver;
+import edu.najah.stu.domain.CarDriver;
 import edu.najah.stu.domain.DeliveryAddress;
 import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.DriverStatus;
+import edu.najah.stu.domain.ElectricVehicleDriver;
 import edu.najah.stu.domain.Location;
+import edu.najah.stu.domain.MotorcycleDriver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.StandardOrder;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
 import edu.najah.stu.payment.CashPaymentService;
@@ -56,13 +61,13 @@ class DriverAssignmentTest {
                 new PricingService(() -> OrderTestData.MONDAY_4PM), new CashPaymentService(),
                 () -> OrderTestData.MONDAY_4PM, event -> { });
         order = orderService.placeOrder(OrderTestData.customer(), "manual-04", Map.of("manual-04-1", 2),
-                new DeliveryAddress("New campus", NEW_CAMPUS), false, null);
+                new DeliveryAddress("New campus", NEW_CAMPUS), new StandardOrder(), null);
         service = new DriverAssignmentService(drivers, orders, events);
     }
 
     @Test
     void assignsAnAvailableDriverWhoBecomesBusy() {
-        Driver car = new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30);
+        Driver car = new CarDriver("D4", "Yousef", OrderTestData.CAMPUS);
         drivers.save(car);
 
         Driver assigned = service.assign(order.getId(), new NearestDriverStrategy());
@@ -74,20 +79,22 @@ class DriverAssignmentTest {
     }
 
     @Test
-    void busyDriversAreNotEligible() {
-        Driver busy = new Driver("D1", "Busy", OrderTestData.CAMPUS, 30);
+    void busyAndUnsuitableDriversAreNotEligible() {
+        Driver busy = new CarDriver("D1", "Busy", OrderTestData.CAMPUS);
         busy.markBusy();
-        Driver free = new Driver("D3", "Free", new Location(32.25, 35.30), 30);
+        Driver lowBattery = new ElectricVehicleDriver("D2", "Low", OrderTestData.CAMPUS, 3);
+        Driver farCar = new CarDriver("D3", "Far", new Location(32.25, 35.30));
         drivers.save(busy);
-        drivers.save(free);
+        drivers.save(lowBattery);
+        drivers.save(farCar);
 
-        assertEquals(List.of(free), service.eligibleDrivers(order));
+        assertEquals(List.of(farCar), service.eligibleDrivers(order));
     }
 
     @Test
     void nearestStrategyPicksTheClosestDriver() {
-        Driver nearBicycle = new Driver("D1", "Near", OrderTestData.CAMPUS, 15);
-        Driver farMotorcycle = new Driver("D2", "Far", new Location(32.2300, 35.2550), 35);
+        Driver nearBicycle = new BicycleDriver("D1", "Near", OrderTestData.CAMPUS);
+        Driver farMotorcycle = new MotorcycleDriver("D2", "Far", new Location(32.2300, 35.2550));
         drivers.save(farMotorcycle);
         drivers.save(nearBicycle);
 
@@ -96,8 +103,8 @@ class DriverAssignmentTest {
 
     @Test
     void fastestStrategyPicksTheQuickestDelivery() {
-        Driver nearBicycle = new Driver("D1", "Near", OrderTestData.CAMPUS, 15);
-        Driver motorcycle = new Driver("D2", "Quick", new Location(32.2215, 35.2420), 35);
+        Driver nearBicycle = new BicycleDriver("D1", "Near", OrderTestData.CAMPUS);
+        Driver motorcycle = new MotorcycleDriver("D2", "Quick", new Location(32.2215, 35.2420));
         drivers.save(nearBicycle);
         drivers.save(motorcycle);
 
@@ -127,8 +134,8 @@ class DriverAssignmentTest {
 
     @Test
     void finishedOrAlreadyAssignedOrdersCannotGetADriver() {
-        drivers.save(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
-        drivers.save(new Driver("D5", "Rami", OrderTestData.CAMPUS, 30));
+        drivers.save(new CarDriver("D4", "Yousef", OrderTestData.CAMPUS));
+        drivers.save(new CarDriver("D5", "Rami", OrderTestData.CAMPUS));
         String id = order.getId();
         NearestDriverStrategy nearest = new NearestDriverStrategy();
         service.assign(id, nearest);
@@ -141,8 +148,11 @@ class DriverAssignmentTest {
     }
 
     @Test
-    void thereAreFiveDemoDrivers() {
-        assertEquals(5, InMemoryDriverRepository.withDemoDrivers().findAll().size());
+    void demoDriversHaveOneOfEachVehicle() {
+        List<String> vehicles = InMemoryDriverRepository.withDemoDrivers().findAll().stream()
+                .map(Driver::vehicle).distinct().toList();
+
+        assertEquals(List.of("Bicycle", "Motorcycle", "Car", "Electric vehicle"), vehicles);
     }
 
     @Test

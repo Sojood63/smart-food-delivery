@@ -31,7 +31,8 @@ class OrderTest {
     @BeforeEach
     void setUp() {
         Bill bill = new Bill(new BigDecimal("56"), new BigDecimal("5"), BigDecimal.ZERO, "Normal");
-        order = new Order("O1", layan, jaltah, List.of(new OrderLine(burger, 2)), address, bill, NOW);
+        order = new Order("O1", layan, jaltah, List.of(new OrderLine(burger, 2)), address, new StandardOrder(),
+                bill, NOW);
     }
 
     @Test
@@ -70,7 +71,7 @@ class OrderTest {
         order.moveTo(OrderStatus.READY);
         order.moveTo(OrderStatus.OUT_FOR_DELIVERY);
         order.moveTo(OrderStatus.DELIVERED);
-        Driver driver = new Driver("D1", "Yousef", CAMPUS, 30);
+        Driver driver = new CarDriver("D1", "Yousef", CAMPUS);
 
         assertThrows(IllegalStateException.class, () -> order.moveTo(OrderStatus.CANCELLED));
         assertThrows(IllegalStateException.class, () -> order.assignDriver(driver));
@@ -78,8 +79,8 @@ class OrderTest {
 
     @Test
     void recordsOneDriverOnly() {
-        Driver first = new Driver("D1", "Yousef", CAMPUS, 30);
-        Driver second = new Driver("D2", "Rami", CAMPUS, 30);
+        Driver first = new CarDriver("D1", "Yousef", CAMPUS);
+        Driver second = new CarDriver("D2", "Rami", CAMPUS);
 
         order.assignDriver(first);
 
@@ -100,13 +101,14 @@ class OrderTest {
     void orderNeedsLinesAndValues() {
         Bill bill = order.getBill();
         List<OrderLine> none = List.of();
+        StandardOrder type = new StandardOrder();
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Order("O2", layan, jaltah, none, address, bill, NOW));
+                () -> new Order("O2", layan, jaltah, none, address, type, bill, NOW));
         assertThrows(IllegalArgumentException.class,
-                () -> new Order("O2", layan, jaltah, null, address, bill, NOW));
+                () -> new Order("O2", layan, jaltah, null, address, type, bill, NOW));
         assertThrows(IllegalArgumentException.class,
-                () -> new Order(null, layan, jaltah, order.getLines(), address, bill, NOW));
+                () -> new Order(null, layan, jaltah, order.getLines(), address, type, bill, NOW));
     }
 
     @Test
@@ -115,6 +117,7 @@ class OrderTest {
         assertEquals(layan, order.getCustomer());
         assertEquals(jaltah, order.getRestaurant());
         assertEquals(address, order.getAddress());
+        assertEquals("Standard", order.getType().name());
     }
 
     @ParameterizedTest

@@ -2,11 +2,15 @@ package edu.najah.stu.presentation;
 
 import edu.najah.stu.domain.Bill;
 import edu.najah.stu.domain.DeliveryAddress;
+import edu.najah.stu.domain.ExpressOrder;
 import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Order;
+import edu.najah.stu.domain.OrderType;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.ScheduledOrder;
+import edu.najah.stu.domain.StandardOrder;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.service.MenuService;
 import edu.najah.stu.service.OrderNotFoundException;
@@ -15,6 +19,9 @@ import edu.najah.stu.service.OrderService;
 import edu.najah.stu.service.RestaurantService;
 
 import java.io.PrintStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -28,6 +35,7 @@ import java.util.Scanner;
  */
 public class OrderConsole {
 
+    private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String ILS = " ILS";
 
     private final OrderService orderService;
@@ -82,9 +90,9 @@ public class OrderConsole {
         try {
             Map<String, Integer> basket = chooseItems(restaurant);
             DeliveryAddress address = chooseAddress();
-            boolean express = io.answer("Express delivery for 10 ILS more? (yes/no):").equalsIgnoreCase("yes");
+            OrderType type = chooseType();
             String promo = io.answer("Promo code (press Enter for none):");
-            Order order = orderService.placeOrder(customer, restaurant.getId(), basket, address, express, promo);
+            Order order = orderService.placeOrder(customer, restaurant.getId(), basket, address, type, promo);
             printBill(order);
         } catch (OrderRejectedException | IllegalArgumentException e) {
             io.println("Error: " + e.getMessage());
@@ -119,11 +127,11 @@ public class OrderConsole {
      * Describes an order in one line.
      *
      * @param order the order
-     * @return for example {@code "O1 | Jaltah | Pending | 45.00 ILS | unpaid"}
+     * @return for example {@code "O1 | Jaltah | Pending | 45.00 ILS | Standard"}
      */
     static String describe(Order order) {
         return order.getId() + " | " + order.getRestaurant().getName() + " | " + order.getStatus().getDisplayName()
-                + " | " + order.total().toPlainString() + ILS
+                + " | " + order.total().toPlainString() + ILS + " | " + order.getType().name()
                 + order.getDriver().map(driver -> " | driver " + driver.getName()).orElse("")
                 + " | " + order.getPaymentStatus().name().toLowerCase(Locale.ROOT);
     }
@@ -171,6 +179,16 @@ public class OrderConsole {
         return new DeliveryAddress(description, new Location(latitude, longitude));
     }
 
+    private OrderType chooseType() {
+        String choice = io.answer("Order type: 1) Standard  2) Express (+10 ILS)  3) Scheduled");
+        return switch (choice) {
+            case "1" -> new StandardOrder();
+            case "2" -> new ExpressOrder();
+            case "3" -> new ScheduledOrder(time(io.answer("Delivery time (yyyy-MM-dd HH:mm):")));
+            default -> throw new IllegalArgumentException("Please choose 1, 2 or 3");
+        };
+    }
+
     private void printBill(Order order) {
         Bill bill = order.getBill();
         io.println("Order " + order.getId() + " placed: " + order.getStatus().getDisplayName());
@@ -195,6 +213,14 @@ public class OrderConsole {
             return Double.parseDouble(text.trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("'" + text + "' is not a number");
+        }
+    }
+
+    private static LocalDateTime time(String text) {
+        try {
+            return LocalDateTime.parse(text.trim(), WHEN);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Please write the time like 2026-11-20 19:30");
         }
     }
 }

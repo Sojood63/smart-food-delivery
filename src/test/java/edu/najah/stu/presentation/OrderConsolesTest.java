@@ -2,11 +2,12 @@ package edu.najah.stu.presentation;
 
 import edu.najah.stu.OrderTestData;
 import edu.najah.stu.delivery.DriverAssignmentService;
-import edu.najah.stu.domain.Driver;
+import edu.najah.stu.domain.CarDriver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
 import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.StandardOrder;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.payment.CashPaymentService;
 import edu.najah.stu.pricing.PricingService;
@@ -85,14 +86,14 @@ class OrderConsolesTest {
 
     private Order placedOrder() {
         return orderService.placeOrder(layan, "manual-04", Map.of("manual-04-1", 2),
-                OrderTestData.campusAddress(), false, null);
+                OrderTestData.campusAddress(), new StandardOrder(), null);
     }
 
     // ---------- customer ----------
 
     @Test
     void customerPlacesAnOrderAndSeesTheBill() {
-        customerScreen("1", "1", "2", "2", "1", "", "1", "no", "NAJAH10").placeOrder(layan);
+        customerScreen("1", "1", "2", "2", "1", "", "1", "1", "NAJAH10").placeOrder(layan);
 
         assertTrue(printed.contains(" 1) Jaltah"), printed);
         assertTrue(printed.contains("Order O1 placed: Pending"), printed);
@@ -103,10 +104,12 @@ class OrderConsolesTest {
     }
 
     @Test
-    void customerCanChooseAnotherPlaceAndExpressDelivery() {
-        customerScreen("1", "1", "1", "", "3", "Dorm", "32.2190", "35.2401", "yes", "").placeOrder(layan);
-
+    void customerCanChooseAnotherPlaceAndExpressOrScheduled() {
+        customerScreen("1", "1", "1", "", "3", "Dorm", "32.2190", "35.2401", "2", "").placeOrder(layan);
         assertTrue(printed.contains("Delivery fee: 15.0"), printed);
+
+        customerScreen("1", "1", "1", "", "1", "3", "2026-11-02 19:30", "").placeOrder(layan);
+        assertTrue(printed.contains("Order O2 placed"), printed);
     }
 
     @Test
@@ -114,19 +117,25 @@ class OrderConsolesTest {
         customerScreen("9").placeOrder(layan);
         assertTrue(printed.contains("Error: please choose a number from 1 to 1"));
 
-        customerScreen("1", "", "1", "no", "").placeOrder(layan);
+        customerScreen("1", "", "1", "1", "").placeOrder(layan);
         assertTrue(printed.contains("Error: An order must contain at least one item"));
 
-        customerScreen("1", "7", "1", "1", "", "1", "no", "").placeOrder(layan);
+        customerScreen("1", "7", "1", "1", "", "1", "1", "").placeOrder(layan);
         assertTrue(printed.contains("Error: please choose a number from 1 to 2"), printed);
 
         customerScreen("1", "1", "1", "", "9").placeOrder(layan);
         assertTrue(printed.contains("Error: Invalid delivery address choice"));
 
+        customerScreen("1", "1", "1", "", "1", "5").placeOrder(layan);
+        assertTrue(printed.contains("Error: Please choose 1, 2 or 3"));
+
+        customerScreen("1", "1", "1", "", "1", "3", "tomorrow").placeOrder(layan);
+        assertTrue(printed.contains("Error: Please write the time like"));
+
         customerScreen("1", "1", "1", "", "3", "Dorm", "north").placeOrder(layan);
         assertTrue(printed.contains("Error: 'north' is not a number"));
 
-        customerScreen("1", "2", "1", "", "1", "no", "").placeOrder(layan);
+        customerScreen("1", "2", "1", "", "1", "1", "").placeOrder(layan);
         assertTrue(printed.contains("Error: The minimum order is 20 ILS"), printed);
     }
 
@@ -146,7 +155,7 @@ class OrderConsolesTest {
 
         Order order = placedOrder();
         customerScreen("").myOrders(layan);
-        assertTrue(printed.contains(" O1 | Jaltah | Pending | 61.00 ILS | unpaid"), printed);
+        assertTrue(printed.contains(" O1 | Jaltah | Pending | 61.00 ILS | Standard | unpaid"), printed);
 
         customerScreen("O1").myOrders(layan);
         assertTrue(printed.contains("Order O1 is Cancelled"));
@@ -172,7 +181,7 @@ class OrderConsolesTest {
 
     @Test
     void managerRunsAnOrderFromStartToCashPayment() {
-        drivers.save(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        drivers.save(new CarDriver("D4", "Yousef", OrderTestData.CAMPUS));
         Order order = placedOrder();
 
         managerScreen("1", "2", "O1", "2", "O1", "2", "O1", "3", "O1", "2", "2", "O1", "4", "O1", "70", "2", "O1",
@@ -180,7 +189,7 @@ class OrderConsolesTest {
 
         assertTrue(printed.contains(" O1 | Jaltah | Pending"), printed);
         assertTrue(printed.contains("Order O1 is now Confirmed"));
-        assertTrue(printed.contains("Fastest driver: Yousef will deliver order O1"), printed);
+        assertTrue(printed.contains("Fastest driver: Yousef (Car) will deliver order O1"), printed);
         assertTrue(printed.contains("Order O1 is now Out for delivery"), printed);
         assertTrue(printed.contains("Paid. Change: 9.00 ILS"), printed);
         assertTrue(printed.contains("Order O1 is now Delivered"));
@@ -214,11 +223,11 @@ class OrderConsolesTest {
 
     @Test
     void rejectedCashPaymentIsShown() {
-        drivers.save(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        drivers.save(new CarDriver("D4", "Yousef", OrderTestData.CAMPUS));
         Order order = placedOrder();
         managerScreen("2", "O1", "2", "O1", "2", "O1", "3", "O1", "1", "2", "O1", "4", "O1", "50", "0");
 
-        assertTrue(printed.contains("Nearest driver: Yousef will deliver order O1"), printed);
+        assertTrue(printed.contains("Nearest driver: Yousef (Car)"), printed);
         assertTrue(printed.contains("Payment rejected: the amount is less than the total."), printed);
         assertEquals(PaymentStatus.REJECTED, order.getPaymentStatus());
     }

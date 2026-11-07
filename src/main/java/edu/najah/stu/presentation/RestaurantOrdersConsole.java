@@ -113,7 +113,8 @@ public class RestaurantOrdersConsole {
             default -> throw new IllegalArgumentException("Please choose 1 or 2");
         };
         Driver driver = driverService.assign(order.getId(), strategy);
-        io.println(strategy.name() + ": " + driver.getName() + " will deliver order " + order.getId());
+        io.println(strategy.name() + ": " + driver.getName() + " (" + driver.vehicle() + ") will deliver order "
+                + order.getId());
     }
 
     private void takePayment(String restaurantId) {

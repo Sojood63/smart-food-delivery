@@ -5,7 +5,7 @@ import edu.najah.stu.domain.Bill;
 import java.math.BigDecimal;
 
 /**
- * Express delivery pays an extra fee on top of the normal delivery fee.
+ * Express orders pay an extra fee on top of the normal delivery fee (US5.2).
  */
 public class ExpressDeliveryPricing implements PricingStrategy {
 

@@ -1,13 +1,13 @@
 package edu.najah.stu.domain;
 
 /**
- * A delivery driver who can be assigned to one order at a time (US3.1).
+ * A delivery driver. Each kind of vehicle is a subclass with its own limits
+ * (US5.3, US5.4); the assignment service only calls {@link #canDeliver}.
  */
-public class Driver {
+public abstract class Driver {
 
     private final String id;
     private final String name;
-    private final double speedKmh;
     private Location location;
     private DriverStatus status = DriverStatus.AVAILABLE;
 
@@ -17,28 +17,53 @@ public class Driver {
      * @param id       unique id, for example {@code "D1"}
      * @param name     the driver's name
      * @param location where the driver is now
-     * @param speedKmh the driver's usual speed in town, in km/h; more than zero
      */
-    public Driver(String id, String name, Location location, double speedKmh) {
+    protected Driver(String id, String name, Location location) {
         if (id == null || id.isBlank() || name == null || name.isBlank() || location == null) {
             throw new IllegalArgumentException("Driver needs an id, a name and a location");
-        }
-        if (!(speedKmh > 0)) {
-            throw new IllegalArgumentException("Speed must be more than zero");
         }
         this.id = id;
         this.name = name;
         this.location = location;
-        this.speedKmh = speedKmh;
     }
 
     /**
-     * Returns the usual speed in town.
+     * Returns the kind of vehicle, shown to people.
+     *
+     * @return for example {@code "Bicycle"}
+     */
+    public abstract String vehicle();
+
+    /**
+     * Returns the usual speed of this vehicle in town.
      *
      * @return the speed in km/h
      */
-    public double speedKmh() {
-        return speedKmh;
+    public abstract double speedKmh();
+
+    /**
+     * Returns the longest trip this vehicle may make, restaurant to customer.
+     *
+     * @return the distance in km
+     */
+    public abstract double maxDistanceKm();
+
+    /**
+     * Returns the most items this vehicle can carry in one order.
+     *
+     * @return the number of items
+     */
+    public abstract int maxItems();
+
+    /**
+     * Tells whether this driver's vehicle can carry an order over a distance.
+     *
+     * @param tripKm     restaurant to customer, in km
+     * @param itemCount  items in the order
+     * @return {@code true} if the trip and the order fit the vehicle
+     */
+    public boolean canDeliver(double tripKm, int itemCount) {
+        return tripKm <= maxDistanceKm() && itemCount <= maxItems();
     }
 
     /**

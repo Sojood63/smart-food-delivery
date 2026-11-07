@@ -9,9 +9,9 @@ import java.util.Optional;
  * A customer's food order from one restaurant.
  *
  * <p>An order starts as {@link OrderStatus#PENDING} (US2.1) and then follows
- * the order life cycle (US4.1). Every change goes
- * through {@link #moveTo}, which rejects steps the order life cycle does not
- * allow, so a delivered or cancelled order can never change again.</p>
+ * the order life cycle (US4.1). Every change goes through {@link #moveTo},
+ * which rejects steps that are not allowed, so a delivered or cancelled order
+ * can never change again.</p>
  */
 public class Order {
 
@@ -20,6 +20,7 @@ public class Order {
     private final Restaurant restaurant;
     private final List<OrderLine> lines;
     private final DeliveryAddress address;
+    private final OrderType type;
     private final Bill bill;
     private final LocalDateTime placedAt;
     private OrderStatus status = OrderStatus.PENDING;
@@ -27,22 +28,23 @@ public class Order {
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     /**
-     * Creates a pending, unpaid order. The ordering rules are checked by the
-     * order service before an order is created.
+     * Creates a pending, unpaid order. The checks of the ordering rules are
+     * done by the order service before an order is created.
      *
      * @param id         unique id, for example {@code "O1"}
      * @param customer   who ordered
      * @param restaurant where the food comes from
      * @param lines      the items and quantities; must not be empty
      * @param address    where to deliver
+     * @param type       standard, express or scheduled
      * @param bill       the prices
      * @param placedAt   when the order was placed
      * @throws IllegalArgumentException if a value is missing or there are no lines
      */
     public Order(String id, User customer, Restaurant restaurant, List<OrderLine> lines, DeliveryAddress address,
-                 Bill bill, LocalDateTime placedAt) {
-        if (id == null || customer == null || restaurant == null || address == null || bill == null
-                || placedAt == null) {
+                 OrderType type, Bill bill, LocalDateTime placedAt) {
+        if (id == null || customer == null || restaurant == null || address == null || type == null
+                || bill == null || placedAt == null) {
             throw new IllegalArgumentException("Order values must not be null");
         }
         if (lines == null || lines.isEmpty()) {
@@ -53,12 +55,13 @@ public class Order {
         this.restaurant = restaurant;
         this.lines = List.copyOf(lines);
         this.address = address;
+        this.type = type;
         this.bill = bill;
         this.placedAt = placedAt;
     }
 
     /**
-     * Moves the order to another status.
+     * Moves the order to its next status.
      *
      * @param next the wanted status
      * @throws IllegalStateException if the life cycle does not allow this step
@@ -72,7 +75,7 @@ public class Order {
     }
 
     /**
-     * Records the driver who delivers this order (US3.1).
+     * Records the driver who delivers this order.
      *
      * @param assigned the driver; must not be null
      * @throws IllegalStateException if the order is finished or already has a driver
@@ -88,16 +91,7 @@ public class Order {
     }
 
     /**
-     * Returns the number of items, counting quantities.
-     *
-     * @return for example 3 for two burgers and one drink
-     */
-    public int itemCount() {
-        return lines.stream().mapToInt(OrderLine::quantity).sum();
-    }
-
-    /**
-     * Records the result of a payment (US4.4).
+     * Records the result of a payment.
      *
      * @param result paid or rejected
      */
@@ -106,6 +100,15 @@ public class Order {
             throw new IllegalArgumentException("Payment status must not be null");
         }
         paymentStatus = result;
+    }
+
+    /**
+     * Returns the number of items, counting quantities.
+     *
+     * @return for example 3 for two burgers and one drink
+     */
+    public int itemCount() {
+        return lines.stream().mapToInt(OrderLine::quantity).sum();
     }
 
     /**
@@ -160,6 +163,15 @@ public class Order {
      */
     public DeliveryAddress getAddress() {
         return address;
+    }
+
+    /**
+     * Returns the kind of order.
+     *
+     * @return standard, express or scheduled
+     */
+    public OrderType getType() {
+        return type;
     }
 
     /**

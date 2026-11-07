@@ -1,13 +1,16 @@
 package edu.najah.stu.service;
 
 import edu.najah.stu.OrderTestData;
+import edu.najah.stu.domain.CarDriver;
 import edu.najah.stu.domain.DeliveryAddress;
-import edu.najah.stu.domain.Driver;
+import edu.najah.stu.domain.ExpressOrder;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
 import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.Role;
+import edu.najah.stu.domain.ScheduledOrder;
+import edu.najah.stu.domain.StandardOrder;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
@@ -34,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Placing, rejecting, cancelling, moving and paying orders (Sprints 2 to 4).
+ * Placing, rejecting, cancelling, moving and paying orders (Sprints 2 and 4).
  * Payments and notifications are Mockito mocks; the clock is fixed.
  */
 @ExtendWith(MockitoExtension.class)
@@ -71,7 +74,7 @@ class OrderServiceTest {
 
     private Order placeStandard() {
         return service.placeOrder(layan, JALTAH, basket(BURGER, 2, FRIES, 1), OrderTestData.campusAddress(),
-                false, null);
+                new StandardOrder(), null);
     }
 
     private void rejected(String reason, Runnable placing) {
@@ -105,15 +108,23 @@ class OrderServiceTest {
     }
 
     @Test
-    void expressDeliveryPaysTheExpressFeeAndPromoCodesDiscount() {
+    void expressOrderPaysTheExpressFeeAndPromoCodesDiscount() {
         Order express = service.placeOrder(layan, JALTAH, basket(BURGER, 1), OrderTestData.campusAddress(),
-                true, null);
+                new ExpressOrder(), null);
         Order promo = service.placeOrder(layan, JALTAH, basket(BURGER, 1), OrderTestData.campusAddress(),
-                false, "NAJAH10");
+                new StandardOrder(), "NAJAH10");
 
         assertEquals(new BigDecimal("43.00"), express.total());
         assertEquals(new BigDecimal("30.20"), promo.total());
         assertEquals("O2", promo.getId());
+    }
+
+    @Test
+    void scheduledOrderForLaterIsAccepted() {
+        Order order = service.placeOrder(layan, JALTAH, basket(BURGER, 1), OrderTestData.campusAddress(),
+                new ScheduledOrder(OrderTestData.MONDAY_4PM.plusHours(2)), null);
+
+        assertEquals(OrderStatus.PENDING, order.getStatus());
     }
 
     // ---------- US2.2 invalid orders ----------
@@ -121,56 +132,61 @@ class OrderServiceTest {
     @Test
     void unavailableItemIsRejected() {
         rejected("Shake is not available now", () -> service.placeOrder(layan, JALTAH, basket("manual-04-3", 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
     void itemNotOnTheMenuIsRejected() {
         rejected("manual-99-1 is not on the menu", () -> service.placeOrder(layan, JALTAH, basket("manual-99-1", 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
     void emptyOrderIsRejected() {
         rejected("at least one item", () -> service.placeOrder(layan, JALTAH, basket(),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
         rejected("at least one item", () -> service.placeOrder(layan, JALTAH, null,
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
     void invalidQuantitiesAreRejected() {
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 0),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 21),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, null),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
     void closedRestaurantAndNonCustomersCannotOrder() {
         rejected("Night Grill is closed now", () -> service.placeOrder(layan, "manual-05", basket("manual-05-1", 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
         rejected("Only a customer", () -> service.placeOrder(manager, JALTAH, basket(BURGER, 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
         rejected("Only a customer", () -> service.placeOrder(null, JALTAH, basket(BURGER, 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
     void unknownRestaurantIsReported() {
         Map<String, Integer> items = basket(BURGER, 1);
         DeliveryAddress address = OrderTestData.campusAddress();
+        StandardOrder type = new StandardOrder();
 
         assertThrows(RestaurantNotFoundException.class,
-                () -> service.placeOrder(layan, "manual-99", items, address, false, null));
+                () -> service.placeOrder(layan, "manual-99", items, address, type, null));
     }
 
     @Test
-    void unknownPromoCodeIsRejected() {
+    void pastScheduledTimeMissingTypeAndUnknownPromoAreRejected() {
+        rejected("future delivery time", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1),
+                OrderTestData.campusAddress(), new ScheduledOrder(OrderTestData.MONDAY_4PM.minusHours(1)), null));
+        rejected("Order type", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1),
+                OrderTestData.campusAddress(), null, null));
         rejected("Unknown promo code", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1),
-                OrderTestData.campusAddress(), false, "FREE"));
+                OrderTestData.campusAddress(), new StandardOrder(), "FREE"));
     }
 
     // ---------- US2.3 delivery policies ----------
@@ -180,13 +196,13 @@ class OrderServiceTest {
         DeliveryAddress huwara = new DeliveryAddress("Huwara", new Location(32.1520, 35.2560));
 
         rejected("the delivery zone is 5 km", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), huwara,
-                false, null));
+                new StandardOrder(), null));
     }
 
     @Test
     void orderBelowTheMinimumIsRejected() {
         rejected("minimum order is 20 ILS", () -> service.placeOrder(layan, JALTAH, basket(FRIES, 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     @Test
@@ -194,11 +210,11 @@ class OrderServiceTest {
         DeliveryAddress ramallah = new DeliveryAddress("Ramallah", new Location(31.9038, 35.2034));
 
         rejected("outside Nablus", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), ramallah,
-                false, null));
+                new StandardOrder(), null));
         rejected("delivery address is needed", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), null,
-                false, null));
+                new StandardOrder(), null));
         rejected("no known location", () -> service.placeOrder(layan, "manual-06", basket("manual-06-1", 1),
-                OrderTestData.campusAddress(), false, null));
+                OrderTestData.campusAddress(), new StandardOrder(), null));
     }
 
     // ---------- US2.4 cancel ----------
@@ -241,7 +257,7 @@ class OrderServiceTest {
     @Test
     void wholeLifeCycleNotifiesTheCustomerAndFreesTheDriver() {
         Order order = placeStandard();
-        Driver driver = new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30);
+        CarDriver driver = new CarDriver("D4", "Yousef", OrderTestData.CAMPUS);
         order.assignDriver(driver);
         driver.markBusy();
 
@@ -277,7 +293,7 @@ class OrderServiceTest {
 
     private Order outForDelivery() {
         Order order = placeStandard();
-        order.assignDriver(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        order.assignDriver(new CarDriver("D4", "Yousef", OrderTestData.CAMPUS));
         for (OrderStatus next : List.of(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY,
                 OrderStatus.OUT_FOR_DELIVERY)) {
             service.updateStatus(order.getId(), next);
