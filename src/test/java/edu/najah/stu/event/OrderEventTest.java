@@ -1,6 +1,7 @@
 package edu.najah.stu.event;
 
 import edu.najah.stu.OrderTestData;
+import edu.najah.stu.domain.Bill;
 import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Order;
@@ -25,7 +26,8 @@ class OrderEventTest {
     private final Order order = new Order("O7", layan,
             OrderTestData.restaurants().findById("manual-04").orElseThrow(),
             List.of(new OrderLine(new MenuItem("manual-04-1", "Burger", new BigDecimal("28"), true), 2)),
-            OrderTestData.campusAddress(), OrderTestData.MONDAY_4PM);
+            OrderTestData.campusAddress(),
+            new Bill(new BigDecimal("56"), new BigDecimal("5"), BigDecimal.ZERO, "Normal"), OrderTestData.MONDAY_4PM);
 
     @Test
     void placedOrderTellsTheCustomerTheTotal() {
@@ -33,7 +35,7 @@ class OrderEventTest {
 
         assertSame(layan, event.recipient());
         assertEquals("Order O7 received", event.subject());
-        assertTrue(event.message().contains("56.00 ILS"));
+        assertTrue(event.message().contains("61.00 ILS, paid in cash on delivery"));
     }
 
     @Test

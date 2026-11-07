@@ -1,7 +1,6 @@
 package edu.najah.stu.domain;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -9,7 +8,8 @@ import java.util.Optional;
 /**
  * A customer's food order from one restaurant.
  *
- * <p>An order starts as {@link OrderStatus#PENDING} (US2.1). Every change goes
+ * <p>An order starts as {@link OrderStatus#PENDING} (US2.1) and then follows
+ * the order life cycle (US4.1). Every change goes
  * through {@link #moveTo}, which rejects steps the order life cycle does not
  * allow, so a delivered or cancelled order can never change again.</p>
  */
@@ -20,25 +20,29 @@ public class Order {
     private final Restaurant restaurant;
     private final List<OrderLine> lines;
     private final DeliveryAddress address;
+    private final Bill bill;
     private final LocalDateTime placedAt;
     private OrderStatus status = OrderStatus.PENDING;
     private Driver driver;
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     /**
-     * Creates a pending order. The ordering rules are checked by the order
-     * service before an order is created.
+     * Creates a pending, unpaid order. The ordering rules are checked by the
+     * order service before an order is created.
      *
      * @param id         unique id, for example {@code "O1"}
      * @param customer   who ordered
      * @param restaurant where the food comes from
      * @param lines      the items and quantities; must not be empty
      * @param address    where to deliver
+     * @param bill       the prices
      * @param placedAt   when the order was placed
      * @throws IllegalArgumentException if a value is missing or there are no lines
      */
     public Order(String id, User customer, Restaurant restaurant, List<OrderLine> lines, DeliveryAddress address,
-                 LocalDateTime placedAt) {
-        if (id == null || customer == null || restaurant == null || address == null || placedAt == null) {
+                 Bill bill, LocalDateTime placedAt) {
+        if (id == null || customer == null || restaurant == null || address == null || bill == null
+                || placedAt == null) {
             throw new IllegalArgumentException("Order values must not be null");
         }
         if (lines == null || lines.isEmpty()) {
@@ -49,6 +53,7 @@ public class Order {
         this.restaurant = restaurant;
         this.lines = List.copyOf(lines);
         this.address = address;
+        this.bill = bill;
         this.placedAt = placedAt;
     }
 
@@ -92,13 +97,24 @@ public class Order {
     }
 
     /**
-     * Returns the price of the food: the sum of all lines.
+     * Records the result of a payment (US4.4).
      *
-     * @return the total, with two decimals
+     * @param result paid or rejected
+     */
+    public void recordPayment(PaymentStatus result) {
+        if (result == null) {
+            throw new IllegalArgumentException("Payment status must not be null");
+        }
+        paymentStatus = result;
+    }
+
+    /**
+     * Returns the final price to pay.
+     *
+     * @return the bill total
      */
     public BigDecimal total() {
-        return lines.stream().map(OrderLine::total).reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+        return bill.total();
     }
 
     /**
@@ -147,6 +163,15 @@ public class Order {
     }
 
     /**
+     * Returns the prices.
+     *
+     * @return the bill
+     */
+    public Bill getBill() {
+        return bill;
+    }
+
+    /**
      * Returns when the order was placed.
      *
      * @return the time
@@ -171,5 +196,14 @@ public class Order {
      */
     public Optional<Driver> getDriver() {
         return Optional.ofNullable(driver);
+    }
+
+    /**
+     * Returns whether the order has been paid.
+     *
+     * @return the payment status
+     */
+    public PaymentStatus getPaymentStatus() {
+        return paymentStatus;
     }
 }

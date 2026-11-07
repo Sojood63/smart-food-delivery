@@ -1,5 +1,6 @@
 package edu.najah.stu.service;
 
+import edu.najah.stu.domain.Bill;
 import edu.najah.stu.domain.DeliveryAddress;
 import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.Location;
@@ -7,11 +8,14 @@ import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderLine;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
+import edu.najah.stu.payment.PaymentService;
+import edu.najah.stu.pricing.PricingService;
 import edu.najah.stu.repository.OrderRepository;
 import edu.najah.stu.repository.RestaurantRepository;
 import edu.najah.stu.repository.UserRepository;
@@ -23,9 +27,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * Places, cancels and moves orders (Sprints 2 and 3).
+ * Places, cancels, moves and pays orders (Sprints 2 to 4).
  *
  * <p>Ordering rules (US2.2): the order is not empty, every item is on the
  * menu and available, and every quantity is valid. Delivery policies (US2.3):
@@ -45,9 +50,13 @@ public class OrderService {
     /** The smallest food price an order may have, in ILS. */
     public static final BigDecimal MIN_ORDER_VALUE = new BigDecimal("20");
 
+    private static final Set<OrderStatus> PAYABLE = Set.of(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED);
+
     private final RestaurantRepository restaurants;
     private final OrderRepository orders;
     private final UserRepository users;
+    private final PricingService pricing;
+    private final PaymentService payments;
     private final TimeProvider timeProvider;
     private final EventPublisher events;
 
@@ -57,34 +66,42 @@ public class OrderService {
      * @param restaurants  where restaurants are stored
      * @param orders       where orders are stored
      * @param users        used to find the manager of a restaurant
+     * @param pricing      makes the bill
+     * @param payments     takes payments
      * @param timeProvider the clock
      * @param events       where order events are published
      */
     public OrderService(RestaurantRepository restaurants, OrderRepository orders, UserRepository users,
-                        TimeProvider timeProvider, EventPublisher events) {
-        if (restaurants == null || orders == null || users == null || timeProvider == null || events == null) {
+                        PricingService pricing, PaymentService payments, TimeProvider timeProvider,
+                        EventPublisher events) {
+        if (restaurants == null || orders == null || users == null || pricing == null || payments == null
+                || timeProvider == null || events == null) {
             throw new IllegalArgumentException("Order service parts must not be null");
         }
         this.restaurants = restaurants;
         this.orders = orders;
         this.users = users;
+        this.pricing = pricing;
+        this.payments = payments;
         this.timeProvider = timeProvider;
         this.events = events;
     }
 
     /**
-     * Places an order (US2.1). The new order is pending and its total is the
-     * price of the food.
+     * Places an order (US2.1). The new order is pending and its total includes
+     * the delivery fee for the distance and the chosen pricing.
      *
      * @param customer     the logged-in customer
      * @param restaurantId the restaurant to order from
      * @param quantities   menu item id to quantity, in the order the customer chose them
      * @param address      where to deliver
+     * @param express      {@code true} for express delivery
+     * @param promoCode    a promo code, or null for none
      * @return the new pending order
      * @throws OrderRejectedException if a rule or a delivery policy is broken
      */
     public Order placeOrder(User customer, String restaurantId, Map<String, Integer> quantities,
-                            DeliveryAddress address) {
+                            DeliveryAddress address, boolean express, String promoCode) {
         if (customer == null || customer.getRole() != Role.CUSTOMER) {
             throw new OrderRejectedException("Only a customer can place an order");
         }
@@ -95,8 +112,15 @@ public class OrderService {
             throw new OrderRejectedException(restaurant.getName() + " is closed now");
         }
         List<OrderLine> lines = toLines(restaurant, quantities);
-        checkDeliveryPolicies(restaurant, address, lines);
-        Order order = new Order("O" + (orders.findAll().size() + 1), customer, restaurant, lines, address, now);
+        double distanceKm = checkDeliveryPolicies(restaurant, address, lines);
+        Bill bill;
+        try {
+            bill = pricing.bill(subtotal(lines), distanceKm, express, promoCode);
+        } catch (IllegalArgumentException e) {
+            throw new OrderRejectedException(e.getMessage());
+        }
+        Order order = new Order("O" + (orders.findAll().size() + 1), customer, restaurant, lines, address, bill,
+                now);
         orders.save(order);
         events.publish(OrderEvent.placed(order));
         managerOf(restaurant).ifPresent(manager -> events.publish(OrderEvent.newOrderForRestaurant(manager, order)));
@@ -128,9 +152,8 @@ public class OrderService {
     }
 
     /**
-     * Moves an order to its next status; the customer is told (US3.3, US3.4).
-     * Going out for delivery needs a driver; when the order is delivered, the
-     * driver is free again.
+     * Moves an order to its next status (US4.1). Going out for delivery needs a
+     * driver; when the order is delivered, the driver is free again.
      *
      * @param orderId the order
      * @param next    the next status
@@ -149,6 +172,30 @@ public class OrderService {
         orders.save(order);
         events.publish(OrderEvent.statusChanged(order));
         return order;
+    }
+
+    /**
+     * Takes a cash payment when the order arrives (US4.4). The result is
+     * recorded on the order.
+     *
+     * @param orderId the order
+     * @param amount  the cash received
+     * @return paid or rejected
+     * @throws IllegalStateException if the order is already paid or not out for delivery yet
+     */
+    public PaymentStatus pay(String orderId, BigDecimal amount) {
+        Order order = findOrder(orderId);
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new IllegalStateException("Order " + orderId + " is already paid");
+        }
+        if (!PAYABLE.contains(order.getStatus())) {
+            throw new IllegalStateException("Cash is paid on delivery; order " + orderId + " is "
+                    + order.getStatus().getDisplayName());
+        }
+        PaymentStatus result = payments.pay(order, amount);
+        order.recordPayment(result);
+        orders.save(order);
+        return result;
     }
 
     /**

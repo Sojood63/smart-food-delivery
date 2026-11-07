@@ -8,17 +8,19 @@ import edu.najah.stu.delivery.NoDriverAvailableException;
 import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.service.OrderNotFoundException;
 import edu.najah.stu.service.OrderService;
 
 import java.io.PrintStream;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Scanner;
 
 /**
- * The manager's order screen: move orders to their next step (US3.3) and
- * assign drivers (US3.1, US3.2).
+ * The manager's order screen: move orders through their life cycle (US4.1),
+ * assign drivers (US3.1, US3.2) and record cash payments (US4.4).
  */
 public class RestaurantOrdersConsole {
 
@@ -27,6 +29,7 @@ public class RestaurantOrdersConsole {
             "1) Show orders",
             "2) Move an order to its next step",
             "3) Assign a driver",
+            "4) Record a cash payment",
             "0) Back");
 
     private final OrderService orderService;
@@ -36,7 +39,7 @@ public class RestaurantOrdersConsole {
     /**
      * Creates the console. No argument may be null.
      *
-     * @param orderService  moves orders
+     * @param orderService  moves orders and takes payments
      * @param driverService assigns drivers
      * @param in            where answers are read from
      * @param out           where text is printed
@@ -65,6 +68,7 @@ public class RestaurantOrdersConsole {
                     case "1" -> showOrders(restaurantId);
                     case "2" -> moveOn(restaurantId);
                     case "3" -> assignDriver(restaurantId);
+                    case "4" -> takePayment(restaurantId);
                     default -> io.println("Unknown choice: " + choice);
                 }
             } catch (IllegalArgumentException | IllegalStateException | OrderNotFoundException
@@ -110,5 +114,22 @@ public class RestaurantOrdersConsole {
         };
         Driver driver = driverService.assign(order.getId(), strategy);
         io.println(strategy.name() + ": " + driver.getName() + " will deliver order " + order.getId());
+    }
+
+    private void takePayment(String restaurantId) {
+        Order order = ownOrder(restaurantId);
+        io.println("Total: " + order.total().toPlainString() + " ILS");
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(io.answer("Cash received:").trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Please type an amount like 45.50");
+        }
+        PaymentStatus result = orderService.pay(order.getId(), amount);
+        if (result == PaymentStatus.PAID) {
+            io.println("Paid. Change: " + amount.subtract(order.total()).toPlainString() + " ILS");
+        } else {
+            io.println("Payment rejected: the amount is less than the total.");
+        }
     }
 }
