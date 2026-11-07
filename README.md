@@ -13,8 +13,8 @@ Software Engineering (10636313) course project, An-Najah National University, fi
 
 | Member | GitHub | Work |
 |--------|--------|------|
-| Sojood | [@Sojood63](https://github.com/Sojood63) | Team lead and integrator: project setup, CI and SonarCloud, architecture, login, file storage, manager panel, emails |
-| Zeina Suwwan | | Restaurant opening hours, restaurant data collection |
+| Sojood Saed| [@Sojood63](https://github.com/Sojood63) | Team lead and integrator: project setup, CI and SonarCloud, architecture, login, file storage, manager panel, emails |
+| Zeina Suwwan |[@ZeinaSuwwan](https://github.com/ZeinaSuwwan)| Restaurant opening hours, restaurant data collection |
 | Mira Hussain | [@mirahussain11](https://github.com/mirahussain11) | Login roles and demo accounts idea, menu data collection |
 
 ## Design
