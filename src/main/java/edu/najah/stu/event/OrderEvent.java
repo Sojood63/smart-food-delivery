@@ -26,7 +26,7 @@ public record OrderEvent(User recipient, Order order, String subject, String mes
     public static OrderEvent placed(Order order) {
         return new OrderEvent(order.getCustomer(), order, ORDER + order.getId() + " received",
                 "We sent your order to " + order.getRestaurant().getName() + ". Total: "
-                        + order.total().toPlainString() + " ILS.");
+                        + order.total().toPlainString() + " ILS, paid in cash on delivery.");
     }
 
     /**

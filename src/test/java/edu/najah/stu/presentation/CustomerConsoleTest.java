@@ -9,6 +9,8 @@ import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.WeeklySchedule;
+import edu.najah.stu.payment.CashPaymentService;
+import edu.najah.stu.pricing.PricingService;
 import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import edu.najah.stu.service.MenuService;
@@ -71,7 +73,7 @@ class CustomerConsoleTest {
         RestaurantService restaurants = new RestaurantService(repository, () -> MONDAY_NOON);
         MenuService menus = new MenuService(repository);
         OrderService orders = new OrderService(repository, new InMemoryOrderRepository(), OrderTestData.users(),
-                () -> MONDAY_NOON, event -> { });
+                new PricingService(() -> MONDAY_NOON), new CashPaymentService(), () -> MONDAY_NOON, event -> { });
         new CustomerConsole(restaurants, menus, new OrderConsole(orders, restaurants, menus, in, out), in, out)
                 .run(OrderTestData.customer());
         return printed.toString(StandardCharsets.UTF_8);
@@ -84,7 +86,8 @@ class CustomerConsoleTest {
         Scanner in = new Scanner("");
         PrintStream out = System.out;
         OrderService orderService = new OrderService(repository, new InMemoryOrderRepository(),
-                OrderTestData.users(), () -> MONDAY_NOON, event -> { });
+                OrderTestData.users(), new PricingService(() -> MONDAY_NOON), new CashPaymentService(),
+                () -> MONDAY_NOON, event -> { });
         OrderConsole orders = new OrderConsole(orderService, restaurants, menus, in, out);
 
         assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(null, menus, orders, in, out));

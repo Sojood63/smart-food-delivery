@@ -9,6 +9,8 @@ import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
+import edu.najah.stu.payment.CashPaymentService;
+import edu.najah.stu.pricing.PricingService;
 import edu.najah.stu.repository.InMemoryDriverRepository;
 import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.service.OrderNotFoundException;
@@ -51,9 +53,10 @@ class DriverAssignmentTest {
     @BeforeEach
     void setUp() {
         OrderService orderService = new OrderService(OrderTestData.restaurants(), orders, OrderTestData.users(),
+                new PricingService(() -> OrderTestData.MONDAY_4PM), new CashPaymentService(),
                 () -> OrderTestData.MONDAY_4PM, event -> { });
         order = orderService.placeOrder(OrderTestData.customer(), "manual-04", Map.of("manual-04-1", 2),
-                new DeliveryAddress("New campus", NEW_CAMPUS));
+                new DeliveryAddress("New campus", NEW_CAMPUS), false, null);
         service = new DriverAssignmentService(drivers, orders, events);
     }
 

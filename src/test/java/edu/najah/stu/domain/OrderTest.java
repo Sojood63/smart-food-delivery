@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Orders, order lines and addresses.
+ * Orders, order lines, addresses and bills.
  */
 class OrderTest {
 
@@ -30,35 +30,83 @@ class OrderTest {
 
     @BeforeEach
     void setUp() {
-        order = new Order("O1", layan, jaltah, List.of(new OrderLine(burger, 2)), address, NOW);
+        Bill bill = new Bill(new BigDecimal("56"), new BigDecimal("5"), BigDecimal.ZERO, "Normal");
+        order = new Order("O1", layan, jaltah, List.of(new OrderLine(burger, 2)), address, bill, NOW);
     }
 
     @Test
-    void newOrderIsPendingWithTheFoodTotal() {
+    void newOrderIsPendingAndUnpaid() {
         assertEquals(OrderStatus.PENDING, order.getStatus());
-        assertEquals(new BigDecimal("56.00"), order.total());
+        assertEquals(PaymentStatus.UNPAID, order.getPaymentStatus());
+        assertEquals(Optional.empty(), order.getDriver());
+        assertEquals(new BigDecimal("61.00"), order.total());
         assertEquals(2, order.itemCount());
         assertEquals(NOW, order.getPlacedAt());
     }
 
     @Test
-    void cancelledOrderCannotChangeAgain() {
-        order.moveTo(OrderStatus.CANCELLED);
+    void followsTheLifeCycle() {
+        for (OrderStatus next : List.of(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY,
+                OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED)) {
+            order.moveTo(next);
+        }
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+    }
 
+    @Test
+    void invalidStepIsRejectedAndNothingChanges() {
         IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> order.moveTo(OrderStatus.CONFIRMED));
-        assertEquals("Order O1 cannot go from Cancelled to Confirmed", error.getMessage());
+                () -> order.moveTo(OrderStatus.DELIVERED));
+
+        assertEquals("Order O1 cannot go from Pending to Delivered", error.getMessage());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
         assertThrows(IllegalStateException.class, () -> order.moveTo(null));
     }
 
     @Test
+    void deliveredOrderCannotBeModified() {
+        order.moveTo(OrderStatus.CONFIRMED);
+        order.moveTo(OrderStatus.PREPARING);
+        order.moveTo(OrderStatus.READY);
+        order.moveTo(OrderStatus.OUT_FOR_DELIVERY);
+        order.moveTo(OrderStatus.DELIVERED);
+        Driver driver = new Driver("D1", "Yousef", CAMPUS, 30);
+
+        assertThrows(IllegalStateException.class, () -> order.moveTo(OrderStatus.CANCELLED));
+        assertThrows(IllegalStateException.class, () -> order.assignDriver(driver));
+    }
+
+    @Test
+    void recordsOneDriverOnly() {
+        Driver first = new Driver("D1", "Yousef", CAMPUS, 30);
+        Driver second = new Driver("D2", "Rami", CAMPUS, 30);
+
+        order.assignDriver(first);
+
+        assertEquals(Optional.of(first), order.getDriver());
+        assertThrows(IllegalStateException.class, () -> order.assignDriver(second));
+        assertThrows(IllegalArgumentException.class, () -> order.assignDriver(null));
+    }
+
+    @Test
+    void recordsPayment() {
+        order.recordPayment(PaymentStatus.PAID);
+
+        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
+        assertThrows(IllegalArgumentException.class, () -> order.recordPayment(null));
+    }
+
+    @Test
     void orderNeedsLinesAndValues() {
+        Bill bill = order.getBill();
         List<OrderLine> none = List.of();
 
-        assertThrows(IllegalArgumentException.class, () -> new Order("O2", layan, jaltah, none, address, NOW));
-        assertThrows(IllegalArgumentException.class, () -> new Order("O2", layan, jaltah, null, address, NOW));
         assertThrows(IllegalArgumentException.class,
-                () -> new Order(null, layan, jaltah, order.getLines(), address, NOW));
+                () -> new Order("O2", layan, jaltah, none, address, bill, NOW));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Order("O2", layan, jaltah, null, address, bill, NOW));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Order(null, layan, jaltah, order.getLines(), address, bill, NOW));
     }
 
     @Test
@@ -90,23 +138,14 @@ class OrderTest {
     }
 
     @Test
-    void recordsOneDriverOnly() {
-        Driver first = new Driver("D1", "Yousef", CAMPUS, 30);
-        Driver second = new Driver("D2", "Rami", CAMPUS, 30);
-        assertEquals(Optional.empty(), order.getDriver());
+    void billRoundsAndAddsUp() {
+        Bill bill = new Bill(new BigDecimal("50"), new BigDecimal("7.5"), new BigDecimal("5"), "Promotion 10%");
 
-        order.assignDriver(first);
-
-        assertEquals(Optional.of(first), order.getDriver());
-        assertThrows(IllegalStateException.class, () -> order.assignDriver(second));
-        assertThrows(IllegalArgumentException.class, () -> order.assignDriver(null));
-    }
-
-    @Test
-    void finishedOrderCannotGetADriver() {
-        order.moveTo(OrderStatus.CANCELLED);
-        Driver driver = new Driver("D1", "Yousef", CAMPUS, 30);
-
-        assertThrows(IllegalStateException.class, () -> order.assignDriver(driver));
+        assertEquals(new BigDecimal("52.50"), bill.total());
+        BigDecimal negative = new BigDecimal("-1");
+        assertThrows(IllegalArgumentException.class, () -> new Bill(negative, BigDecimal.ONE, BigDecimal.ZERO, "x"));
+        assertThrows(IllegalArgumentException.class, () -> new Bill(null, BigDecimal.ONE, BigDecimal.ZERO, "x"));
+        assertThrows(IllegalArgumentException.class, () -> new Bill(BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO,
+                " "));
     }
 }

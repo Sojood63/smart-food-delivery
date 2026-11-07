@@ -1,16 +1,18 @@
 package edu.najah.stu;
 
+import edu.najah.stu.delivery.DriverAssignmentService;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
-import edu.najah.stu.delivery.DriverAssignmentService;
 import edu.najah.stu.event.EventBus;
 import edu.najah.stu.notification.EmailEventListener;
 import edu.najah.stu.notification.MailSenders;
+import edu.najah.stu.payment.CashPaymentService;
 import edu.najah.stu.presentation.CustomerConsole;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
 import edu.najah.stu.presentation.OrderConsole;
 import edu.najah.stu.presentation.RestaurantOrdersConsole;
+import edu.najah.stu.pricing.PricingService;
 import edu.najah.stu.repository.BundledUsers;
 import edu.najah.stu.repository.DataStore;
 import edu.najah.stu.repository.FileRestaurantRepository;
@@ -52,14 +54,15 @@ public class Main {
 
     private final RestaurantImporter importer = RestaurantImporter.withDefaultStrategies();
     private final FileRestaurantRepository restaurants = DataStore.open(DATA_FOLDER, importer::importBundledData);
-    private final RestaurantService restaurantService = new RestaurantService(restaurants, new SystemTimeProvider());
+    private final SystemTimeProvider clock = new SystemTimeProvider();
+    private final RestaurantService restaurantService = new RestaurantService(restaurants, clock);
+    private final MenuService menuService = new MenuService(restaurants);
     private final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
     private final EventBus events = new EventBus();
     private final FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
     private final InMemoryOrderRepository orders = new InMemoryOrderRepository();
     private final OrderService orderService = new OrderService(restaurants, orders, users,
-            new SystemTimeProvider(), events);
-    private final MenuService menuService = new MenuService(restaurants);
+            new PricingService(clock), new CashPaymentService(), clock, events);
     private final CustomerConsole customerConsole = new CustomerConsole(restaurantService, menuService,
             new OrderConsole(orderService, restaurantService, menuService, in, System.out), in, System.out);
     private final ManagerConsole managerConsole =
@@ -78,7 +81,7 @@ public class Main {
 
     private void start() {
         events.subscribe(new EmailEventListener(MailSenders.fromSettings(System.getenv(), MAIL_SETTINGS, System.out)));
-        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider(), events);
+        AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), clock, events);
         LoginConsole loginConsole = new LoginConsole(authService, in, System.out);
 
         System.out.println("Loaded " + restaurants.findAll().size() + " restaurants and " + users.findAll().size()

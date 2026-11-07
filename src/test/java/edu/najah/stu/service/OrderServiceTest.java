@@ -6,10 +6,13 @@ import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
+import edu.najah.stu.payment.PaymentService;
+import edu.najah.stu.pricing.PricingService;
 import edu.najah.stu.repository.InMemoryOrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,10 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * Placing, rejecting, cancelling and moving orders (Sprints 2 and 3).
- * Notifications are a Mockito mock; the clock is fixed.
+ * Placing, rejecting, cancelling, moving and paying orders (Sprints 2 to 4).
+ * Payments and notifications are Mockito mocks; the clock is fixed.
  */
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -39,6 +43,9 @@ class OrderServiceTest {
     private static final String JALTAH = "manual-04";
     private static final String BURGER = "manual-04-1";
     private static final String FRIES = "manual-04-2";
+
+    @Mock
+    private PaymentService payments;
 
     @Mock
     private EventPublisher events;
@@ -51,7 +58,7 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         service = new OrderService(OrderTestData.restaurants(), orders, OrderTestData.users(layan, manager),
-                () -> OrderTestData.MONDAY_4PM, events);
+                new PricingService(() -> OrderTestData.MONDAY_4PM), payments, () -> OrderTestData.MONDAY_4PM, events);
     }
 
     private static Map<String, Integer> basket(Object... itemAndQuantity) {
@@ -63,7 +70,8 @@ class OrderServiceTest {
     }
 
     private Order placeStandard() {
-        return service.placeOrder(layan, JALTAH, basket(BURGER, 2, FRIES, 1), OrderTestData.campusAddress());
+        return service.placeOrder(layan, JALTAH, basket(BURGER, 2, FRIES, 1), OrderTestData.campusAddress(),
+                false, null);
     }
 
     private void rejected(String reason, Runnable placing) {
@@ -81,7 +89,9 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.PENDING, order.getStatus());
         assertEquals(List.of(order), orders.findAll());
-        assertEquals(new BigDecimal("68.00"), order.total());
+        assertEquals(new BigDecimal("68.00"), order.getBill().subtotal());
+        assertEquals(new BigDecimal("5.00"), order.getBill().deliveryFee());
+        assertEquals(new BigDecimal("73.00"), order.total());
         assertEquals("O1", order.getId());
         assertEquals(3, order.itemCount());
     }
@@ -94,46 +104,58 @@ class OrderServiceTest {
         verify(events).publish(OrderEvent.newOrderForRestaurant(manager, order));
     }
 
+    @Test
+    void expressDeliveryPaysTheExpressFeeAndPromoCodesDiscount() {
+        Order express = service.placeOrder(layan, JALTAH, basket(BURGER, 1), OrderTestData.campusAddress(),
+                true, null);
+        Order promo = service.placeOrder(layan, JALTAH, basket(BURGER, 1), OrderTestData.campusAddress(),
+                false, "NAJAH10");
+
+        assertEquals(new BigDecimal("43.00"), express.total());
+        assertEquals(new BigDecimal("30.20"), promo.total());
+        assertEquals("O2", promo.getId());
+    }
+
     // ---------- US2.2 invalid orders ----------
 
     @Test
     void unavailableItemIsRejected() {
         rejected("Shake is not available now", () -> service.placeOrder(layan, JALTAH, basket("manual-04-3", 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
     void itemNotOnTheMenuIsRejected() {
         rejected("manual-99-1 is not on the menu", () -> service.placeOrder(layan, JALTAH, basket("manual-99-1", 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
     void emptyOrderIsRejected() {
         rejected("at least one item", () -> service.placeOrder(layan, JALTAH, basket(),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
         rejected("at least one item", () -> service.placeOrder(layan, JALTAH, null,
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
     void invalidQuantitiesAreRejected() {
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 0),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 21),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
         rejected("must be from 1 to 20", () -> service.placeOrder(layan, JALTAH, basket(BURGER, null),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
     void closedRestaurantAndNonCustomersCannotOrder() {
         rejected("Night Grill is closed now", () -> service.placeOrder(layan, "manual-05", basket("manual-05-1", 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
         rejected("Only a customer", () -> service.placeOrder(manager, JALTAH, basket(BURGER, 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
         rejected("Only a customer", () -> service.placeOrder(null, JALTAH, basket(BURGER, 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
@@ -142,7 +164,13 @@ class OrderServiceTest {
         DeliveryAddress address = OrderTestData.campusAddress();
 
         assertThrows(RestaurantNotFoundException.class,
-                () -> service.placeOrder(layan, "manual-99", items, address));
+                () -> service.placeOrder(layan, "manual-99", items, address, false, null));
+    }
+
+    @Test
+    void unknownPromoCodeIsRejected() {
+        rejected("Unknown promo code", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1),
+                OrderTestData.campusAddress(), false, "FREE"));
     }
 
     // ---------- US2.3 delivery policies ----------
@@ -151,23 +179,26 @@ class OrderServiceTest {
     void restaurantOutsideTheDeliveryZoneIsRejected() {
         DeliveryAddress huwara = new DeliveryAddress("Huwara", new Location(32.1520, 35.2560));
 
-        rejected("the delivery zone is 5 km", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), huwara));
+        rejected("the delivery zone is 5 km", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), huwara,
+                false, null));
     }
 
     @Test
     void orderBelowTheMinimumIsRejected() {
         rejected("minimum order is 20 ILS", () -> service.placeOrder(layan, JALTAH, basket(FRIES, 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     @Test
     void invalidDeliveryAddressesAreRejected() {
         DeliveryAddress ramallah = new DeliveryAddress("Ramallah", new Location(31.9038, 35.2034));
 
-        rejected("outside Nablus", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), ramallah));
-        rejected("delivery address is needed", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), null));
+        rejected("outside Nablus", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), ramallah,
+                false, null));
+        rejected("delivery address is needed", () -> service.placeOrder(layan, JALTAH, basket(BURGER, 1), null,
+                false, null));
         rejected("no known location", () -> service.placeOrder(layan, "manual-06", basket("manual-06-1", 1),
-                OrderTestData.campusAddress()));
+                OrderTestData.campusAddress(), false, null));
     }
 
     // ---------- US2.4 cancel ----------
@@ -185,8 +216,8 @@ class OrderServiceTest {
     @Test
     void orderInPreparationCannotBeCancelled() {
         Order order = placeStandard();
-        order.moveTo(OrderStatus.CONFIRMED);
-        order.moveTo(OrderStatus.PREPARING);
+        service.updateStatus(order.getId(), OrderStatus.CONFIRMED);
+        service.updateStatus(order.getId(), OrderStatus.PREPARING);
         String id = order.getId();
 
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> service.cancelOrder(layan, id));
@@ -205,7 +236,7 @@ class OrderServiceTest {
         assertThrows(OrderNotFoundException.class, () -> service.cancelOrder(layan, "O99"));
     }
 
-    // ---------- US3.3 status changes ----------
+    // ---------- US4.1 status ----------
 
     @Test
     void wholeLifeCycleNotifiesTheCustomerAndFreesTheDriver() {
@@ -242,6 +273,53 @@ class OrderServiceTest {
         assertThrows(IllegalStateException.class, () -> service.updateStatus(id, OrderStatus.OUT_FOR_DELIVERY));
     }
 
+    // ---------- US4.4 payment ----------
+
+    private Order outForDelivery() {
+        Order order = placeStandard();
+        order.assignDriver(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        for (OrderStatus next : List.of(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY,
+                OrderStatus.OUT_FOR_DELIVERY)) {
+            service.updateStatus(order.getId(), next);
+        }
+        return order;
+    }
+
+    @Test
+    void validPaymentIsRecorded() {
+        Order order = outForDelivery();
+        when(payments.pay(any(), any())).thenReturn(PaymentStatus.PAID);
+
+        assertEquals(PaymentStatus.PAID, service.pay(order.getId(), new BigDecimal("80")));
+
+        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
+        verify(payments).pay(order, new BigDecimal("80"));
+    }
+
+    @Test
+    void invalidPaymentIsRejectedAndRecorded() {
+        Order order = outForDelivery();
+        when(payments.pay(any(), any())).thenReturn(PaymentStatus.REJECTED);
+
+        assertEquals(PaymentStatus.REJECTED, service.pay(order.getId(), new BigDecimal("10")));
+
+        assertEquals(PaymentStatus.REJECTED, order.getPaymentStatus());
+    }
+
+    @Test
+    void cashIsOnlyTakenOnDeliveryAndOnce() {
+        String pendingId = placeStandard().getId();
+        BigDecimal cash = new BigDecimal("80");
+
+        assertThrows(IllegalStateException.class, () -> service.pay(pendingId, cash));
+        verify(payments, never()).pay(any(), any());
+
+        Order order = outForDelivery();
+        order.recordPayment(PaymentStatus.PAID);
+        String paidId = order.getId();
+        assertThrows(IllegalStateException.class, () -> service.pay(paidId, cash));
+    }
+
     // ---------- lists ----------
 
     @Test
@@ -256,11 +334,12 @@ class OrderServiceTest {
 
     @Test
     void rejectsMissingParts() {
+        PricingService pricing = new PricingService(() -> OrderTestData.MONDAY_4PM);
         TimeProvider clock = () -> OrderTestData.MONDAY_4PM;
 
         assertThrows(IllegalArgumentException.class, () -> new OrderService(null, orders,
-                OrderTestData.users(), clock, events));
+                OrderTestData.users(), pricing, payments, clock, events));
         assertThrows(IllegalArgumentException.class, () -> new OrderService(OrderTestData.restaurants(), orders,
-                OrderTestData.users(), clock, null));
+                OrderTestData.users(), pricing, payments, clock, null));
     }
 }
