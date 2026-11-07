@@ -19,6 +19,12 @@ public record SmtpSettings(String host, int port, String username, String passwo
     /**
      * Checks the settings and removes extra spaces.
      *
+     * @param host     the SMTP server
+     * @param port     the server port, from 1 to 65535
+     * @param username the login name for the server
+     * @param password the SMTP key or App Password; spaces inside it are removed
+     * @param from     the address the emails come from
+     *
      * @throws IllegalArgumentException if a value is missing or the port is out of range
      */
     public SmtpSettings {

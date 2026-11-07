@@ -1,7 +1,35 @@
 # Smart Food Delivery Management System
 
+[![CI](https://github.com/Sojood63/smart-food-delivery/actions/workflows/ci.yml/badge.svg)](https://github.com/Sojood63/smart-food-delivery/actions/workflows/ci.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Sojood63_smart-food-delivery&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Sojood63_smart-food-delivery)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Sojood63_smart-food-delivery&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Sojood63_smart-food-delivery)
+
 A console food delivery system for restaurants near An-Najah National University, Nablus.
 Built with Java 17, Maven, JUnit 5, Mockito and JaCoCo, checked by GitHub Actions and SonarCloud.
+
+Software Engineering (10636313) course project, An-Najah National University, first semester 2026/2027.
+
+## Team
+
+| Member | GitHub | Work |
+|--------|--------|------|
+| Sojood | [@Sojood63](https://github.com/Sojood63) | Team lead and integrator: project setup, CI and SonarCloud, architecture, login, file storage, manager panel, emails |
+| Zeina Suwwan | | Restaurant opening hours, restaurant data collection |
+| Mira Hussain | [@mirahussain11](https://github.com/mirahussain11) | Login roles and demo accounts idea, menu data collection |
+
+## Design
+
+| Layer | Package | Examples |
+|-------|---------|----------|
+| Presentation | `presentation` | `LoginConsole`, `CustomerConsole`, `ManagerConsole` |
+| Service | `service` | `AuthService`, `RestaurantService`, `MenuService`, `RestaurantManagementService` |
+| Domain | `domain` | `Restaurant`, `MenuItem`, `WeeklySchedule`, `User` |
+| Persistence | `repository` | `FileRestaurantRepository`, `FileUserRepository` (text files in `data/`) |
+
+Design patterns: **Strategy** (`HoursStrategy`: where opening hours come from) and
+**Observer** (`EventBus` and `EmailEventListener`: an email for every event).
+Services depend on interfaces (`RestaurantRepository`, `EventPublisher`, `TimeProvider`,
+`MailSender`), so tests replace them with Mockito mocks.
 
 ## Sprint 1 features
 

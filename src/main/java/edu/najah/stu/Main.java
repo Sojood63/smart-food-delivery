@@ -25,6 +25,13 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Scanner;
 
+/**
+ * Starts the program: loads the data, then shows the login screen and the
+ * customer or manager menu.
+ *
+ * <p>This class only connects the layers; all the logic is in the services,
+ * which have their own tests.</p>
+ */
 public class Main {
 
     private static final Path DATA_FOLDER = Path.of("data");
@@ -46,6 +53,11 @@ public class Main {
     private final ManagerConsole managerConsole =
             new ManagerConsole(new RestaurantManagementService(restaurants, events), in, System.out);
 
+    /**
+     * Runs the program in the console.
+     *
+     * @param args not used
+     */
     public static void main(String[] args) {
         new Main().start();
     }
