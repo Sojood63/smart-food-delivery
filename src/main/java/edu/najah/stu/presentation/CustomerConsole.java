@@ -3,6 +3,7 @@ package edu.najah.stu.presentation;
 import edu.najah.stu.domain.Landmark;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Restaurant;
+import edu.najah.stu.domain.User;
 import edu.najah.stu.service.MenuService;
 import edu.najah.stu.service.NearbyRestaurant;
 import edu.najah.stu.service.RestaurantService;
@@ -12,8 +13,8 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * The text menu a customer uses: open restaurants near the university (US1.2)
- * and the menu of an open restaurant (US1.3).
+ * The text menu a customer uses: open restaurants near the university (US1.2),
+ * the menu of an open restaurant (US1.3), and ordering (Sprint 2).
  *
  * <p>Only open restaurants are offered, and a menu shows only the items that
  * can be ordered now, each with its price.</p>
@@ -28,10 +29,13 @@ public class CustomerConsole {
             "",
             "1) Open restaurants near An-Najah",
             "2) View a restaurant's menu",
+            "3) Place an order",
+            "4) My orders",
             "0) Log out");
 
     private final RestaurantService restaurantService;
     private final MenuService menuService;
+    private final OrderConsole orderConsole;
     private final ConsoleIO io;
 
     /**
@@ -39,27 +43,34 @@ public class CustomerConsole {
      *
      * @param restaurantService finds open and nearby restaurants; must not be null
      * @param menuService       gives the orderable items of a restaurant; must not be null
+     * @param orderConsole      the ordering screens; must not be null
      * @param in                where answers are read from; must not be null
      * @param out               where text is printed; must not be null
      */
-    public CustomerConsole(RestaurantService restaurantService, MenuService menuService, Scanner in, PrintStream out) {
-        if (restaurantService == null || menuService == null) {
-            throw new IllegalArgumentException("Restaurant and menu services must not be null");
+    public CustomerConsole(RestaurantService restaurantService, MenuService menuService, OrderConsole orderConsole,
+                           Scanner in, PrintStream out) {
+        if (restaurantService == null || menuService == null || orderConsole == null) {
+            throw new IllegalArgumentException("Restaurant, menu and order parts must not be null");
         }
         this.restaurantService = restaurantService;
         this.menuService = menuService;
+        this.orderConsole = orderConsole;
         this.io = new ConsoleIO(in, out);
     }
 
     /**
      * Shows the customer menu until the customer logs out.
+     *
+     * @param customer the logged-in customer
      */
-    public void run() {
+    public void run(User customer) {
         String choice = io.ask(MENU);
         while (choice != null && !choice.equals("0")) {
             switch (choice) {
                 case "1" -> printNearby();
                 case "2" -> viewMenu();
+                case "3" -> orderConsole.placeOrder(customer);
+                case "4" -> orderConsole.myOrders(customer);
                 default -> io.println("Unknown choice: " + choice);
             }
             choice = io.ask(MENU);

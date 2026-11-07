@@ -1,5 +1,6 @@
 package edu.najah.stu.presentation;
 
+import edu.najah.stu.OrderTestData;
 import edu.najah.stu.domain.Cuisine;
 import edu.najah.stu.domain.HoursSource;
 import edu.najah.stu.domain.Landmark;
@@ -8,8 +9,10 @@ import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.OpeningHours;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.WeeklySchedule;
+import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import edu.najah.stu.service.MenuService;
+import edu.najah.stu.service.OrderService;
 import edu.najah.stu.service.RestaurantService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,8 +66,14 @@ class CustomerConsoleTest {
     private String type(String... lines) {
         String input = String.join("\n", lines) + "\n";
         ByteArrayOutputStream printed = new ByteArrayOutputStream();
-        new CustomerConsole(new RestaurantService(repository, () -> MONDAY_NOON), new MenuService(repository),
-                new Scanner(input), new PrintStream(printed, true, StandardCharsets.UTF_8)).run();
+        Scanner in = new Scanner(input);
+        PrintStream out = new PrintStream(printed, true, StandardCharsets.UTF_8);
+        RestaurantService restaurants = new RestaurantService(repository, () -> MONDAY_NOON);
+        MenuService menus = new MenuService(repository);
+        OrderService orders = new OrderService(repository, new InMemoryOrderRepository(), OrderTestData.users(),
+                () -> MONDAY_NOON, event -> { });
+        new CustomerConsole(restaurants, menus, new OrderConsole(orders, restaurants, menus, in, out), in, out)
+                .run(OrderTestData.customer());
         return printed.toString(StandardCharsets.UTF_8);
     }
 
@@ -74,10 +83,14 @@ class CustomerConsoleTest {
         MenuService menus = new MenuService(repository);
         Scanner in = new Scanner("");
         PrintStream out = System.out;
+        OrderService orderService = new OrderService(repository, new InMemoryOrderRepository(),
+                OrderTestData.users(), () -> MONDAY_NOON, event -> { });
+        OrderConsole orders = new OrderConsole(orderService, restaurants, menus, in, out);
 
-        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(null, menus, in, out));
-        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(restaurants, null, in, out));
-        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(restaurants, menus, null, out));
+        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(null, menus, orders, in, out));
+        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(restaurants, null, orders, in, out));
+        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(restaurants, menus, null, in, out));
+        assertThrows(IllegalArgumentException.class, () -> new CustomerConsole(restaurants, menus, orders, null, out));
     }
 
     // ---------- US1.3: view a restaurant's menu ----------

@@ -8,13 +8,16 @@ import edu.najah.stu.notification.MailSenders;
 import edu.najah.stu.presentation.CustomerConsole;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
+import edu.najah.stu.presentation.OrderConsole;
 import edu.najah.stu.repository.BundledUsers;
 import edu.najah.stu.repository.DataStore;
 import edu.najah.stu.repository.FileRestaurantRepository;
 import edu.najah.stu.repository.FileUserRepository;
+import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.repository.RestaurantImporter;
 import edu.najah.stu.service.AuthService;
 import edu.najah.stu.service.MenuService;
+import edu.najah.stu.service.OrderService;
 import edu.najah.stu.service.Pbkdf2PasswordHasher;
 import edu.najah.stu.service.RestaurantManagementService;
 import edu.najah.stu.service.RestaurantService;
@@ -48,8 +51,12 @@ public class Main {
     private final RestaurantService restaurantService = new RestaurantService(restaurants, new SystemTimeProvider());
     private final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
     private final EventBus events = new EventBus();
-    private final CustomerConsole customerConsole = new CustomerConsole(restaurantService,
-            new MenuService(restaurants), in, System.out);
+    private final FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
+    private final OrderService orderService = new OrderService(restaurants, new InMemoryOrderRepository(), users,
+            new SystemTimeProvider(), events);
+    private final MenuService menuService = new MenuService(restaurants);
+    private final CustomerConsole customerConsole = new CustomerConsole(restaurantService, menuService,
+            new OrderConsole(orderService, restaurantService, menuService, in, System.out), in, System.out);
     private final ManagerConsole managerConsole =
             new ManagerConsole(new RestaurantManagementService(restaurants, events), in, System.out);
 
@@ -63,7 +70,6 @@ public class Main {
     }
 
     private void start() {
-        FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
         events.subscribe(new EmailEventListener(MailSenders.fromSettings(System.getenv(), MAIL_SETTINGS, System.out)));
         AuthService authService = new AuthService(users, new Pbkdf2PasswordHasher(), new SystemTimeProvider(), events);
         LoginConsole loginConsole = new LoginConsole(authService, in, System.out);
@@ -75,7 +81,7 @@ public class Main {
             if (user.get().getRole() == Role.MANAGER) {
                 managerMenu(user.get());
             } else {
-                customerConsole.run();
+                customerConsole.run(user.get());
             }
             System.out.println("Logged out.");
             user = loginConsole.run();
