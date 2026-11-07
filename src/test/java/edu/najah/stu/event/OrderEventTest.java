@@ -1,6 +1,7 @@
 package edu.najah.stu.event;
 
 import edu.najah.stu.OrderTestData;
+import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderLine;
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Order notifications.
+ * Order notifications (US3.3, US3.4).
  */
 class OrderEventTest {
 
@@ -51,5 +52,24 @@ class OrderEventTest {
         order.moveTo(OrderStatus.CANCELLED);
         assertEquals("Your order was cancelled.", OrderEvent.statusChanged(order).message());
         assertEquals("Order O7: Cancelled", OrderEvent.statusChanged(order).subject());
+    }
+
+    @Test
+    void customerHearsAboutDriverOnTheWayAndDelivery() {
+        assertEquals("A driver will deliver your order.", OrderEvent.driverAssigned(order).message());
+        order.assignDriver(new Driver("D2", "Khaled", OrderTestData.CAMPUS, 35));
+        assertEquals("Khaled will deliver your order.", OrderEvent.driverAssigned(order).message());
+        assertEquals("Order O7: driver assigned", OrderEvent.driverAssigned(order).subject());
+
+        order.moveTo(OrderStatus.CONFIRMED);
+        assertTrue(OrderEvent.statusChanged(order).message().contains("accepted"));
+        order.moveTo(OrderStatus.PREPARING);
+        assertTrue(OrderEvent.statusChanged(order).message().contains("prepared"));
+        order.moveTo(OrderStatus.READY);
+        assertTrue(OrderEvent.statusChanged(order).message().contains("ready"));
+        order.moveTo(OrderStatus.OUT_FOR_DELIVERY);
+        assertEquals("Your order is on the way with Khaled.", OrderEvent.statusChanged(order).message());
+        order.moveTo(OrderStatus.DELIVERED);
+        assertTrue(OrderEvent.statusChanged(order).message().contains("delivered"));
     }
 }

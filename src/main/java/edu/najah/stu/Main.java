@@ -2,6 +2,7 @@ package edu.najah.stu;
 
 import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.delivery.DriverAssignmentService;
 import edu.najah.stu.event.EventBus;
 import edu.najah.stu.notification.EmailEventListener;
 import edu.najah.stu.notification.MailSenders;
@@ -9,10 +10,12 @@ import edu.najah.stu.presentation.CustomerConsole;
 import edu.najah.stu.presentation.LoginConsole;
 import edu.najah.stu.presentation.ManagerConsole;
 import edu.najah.stu.presentation.OrderConsole;
+import edu.najah.stu.presentation.RestaurantOrdersConsole;
 import edu.najah.stu.repository.BundledUsers;
 import edu.najah.stu.repository.DataStore;
 import edu.najah.stu.repository.FileRestaurantRepository;
 import edu.najah.stu.repository.FileUserRepository;
+import edu.najah.stu.repository.InMemoryDriverRepository;
 import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.repository.RestaurantImporter;
 import edu.najah.stu.service.AuthService;
@@ -42,8 +45,9 @@ public class Main {
     private static final String MANAGER_MENU = String.join(System.lineSeparator(),
             "",
             "1) Manage my restaurant",
-            "2) Open restaurants near An-Najah",
-            "3) Reload the bundled data (deletes all manager changes)",
+            "2) Orders of my restaurant",
+            "3) Open restaurants near An-Najah",
+            "4) Reload the bundled data (deletes all manager changes)",
             "0) Log out");
 
     private final RestaurantImporter importer = RestaurantImporter.withDefaultStrategies();
@@ -52,13 +56,16 @@ public class Main {
     private final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
     private final EventBus events = new EventBus();
     private final FileUserRepository users = DataStore.openUsers(DATA_FOLDER, BundledUsers::load);
-    private final OrderService orderService = new OrderService(restaurants, new InMemoryOrderRepository(), users,
+    private final InMemoryOrderRepository orders = new InMemoryOrderRepository();
+    private final OrderService orderService = new OrderService(restaurants, orders, users,
             new SystemTimeProvider(), events);
     private final MenuService menuService = new MenuService(restaurants);
     private final CustomerConsole customerConsole = new CustomerConsole(restaurantService, menuService,
             new OrderConsole(orderService, restaurantService, menuService, in, System.out), in, System.out);
     private final ManagerConsole managerConsole =
             new ManagerConsole(new RestaurantManagementService(restaurants, events), in, System.out);
+    private final RestaurantOrdersConsole restaurantOrdersConsole = new RestaurantOrdersConsole(orderService,
+            new DriverAssignmentService(InMemoryDriverRepository.withDemoDrivers(), orders, events), in, System.out);
 
     /**
      * Runs the program in the console.
@@ -99,8 +106,9 @@ public class Main {
         while (!choice.equals("0")) {
             switch (choice) {
                 case "1" -> managerConsole.run(manager);
-                case "2" -> customerConsole.printNearby();
-                case "3" -> reload();
+                case "2" -> restaurantOrdersConsole.run(manager);
+                case "3" -> customerConsole.printNearby();
+                case "4" -> reload();
                 default -> System.out.println("Unknown choice: " + choice);
             }
             choice = ask(MANAGER_MENU);

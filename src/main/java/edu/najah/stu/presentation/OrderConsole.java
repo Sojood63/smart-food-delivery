@@ -120,7 +120,8 @@ public class OrderConsole {
      */
     static String describe(Order order) {
         return order.getId() + " | " + order.getRestaurant().getName() + " | " + order.getStatus().getDisplayName()
-                + " | " + order.total().toPlainString() + ILS;
+                + " | " + order.total().toPlainString() + ILS
+                + order.getDriver().map(driver -> " | driver " + driver.getName()).orElse("");
     }
 
     private Map<String, Integer> chooseItems(Restaurant restaurant) {

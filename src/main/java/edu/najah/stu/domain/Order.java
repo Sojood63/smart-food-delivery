@@ -4,13 +4,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A customer's food order from one restaurant.
  *
  * <p>An order starts as {@link OrderStatus#PENDING} (US2.1). Every change goes
  * through {@link #moveTo}, which rejects steps the order life cycle does not
- * allow, so a cancelled order can never change again (US2.4).</p>
+ * allow, so a delivered or cancelled order can never change again.</p>
  */
 public class Order {
 
@@ -21,6 +22,7 @@ public class Order {
     private final DeliveryAddress address;
     private final LocalDateTime placedAt;
     private OrderStatus status = OrderStatus.PENDING;
+    private Driver driver;
 
     /**
      * Creates a pending order. The ordering rules are checked by the order
@@ -62,6 +64,22 @@ public class Order {
                     + " to " + (next == null ? "nothing" : next.getDisplayName()));
         }
         status = next;
+    }
+
+    /**
+     * Records the driver who delivers this order (US3.1).
+     *
+     * @param assigned the driver; must not be null
+     * @throws IllegalStateException if the order is finished or already has a driver
+     */
+    public void assignDriver(Driver assigned) {
+        if (assigned == null) {
+            throw new IllegalArgumentException("Driver must not be null");
+        }
+        if (status.isFinal() || driver != null) {
+            throw new IllegalStateException("Order " + id + " cannot get a driver now");
+        }
+        driver = assigned;
     }
 
     /**
@@ -144,5 +162,14 @@ public class Order {
      */
     public OrderStatus getStatus() {
         return status;
+    }
+
+    /**
+     * Returns the driver, once one is assigned.
+     *
+     * @return the driver, or empty
+     */
+    public Optional<Driver> getDriver() {
+        return Optional.ofNullable(driver);
     }
 }

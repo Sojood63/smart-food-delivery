@@ -1,9 +1,13 @@
 package edu.najah.stu.presentation;
 
 import edu.najah.stu.OrderTestData;
+import edu.najah.stu.delivery.DriverAssignmentService;
+import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.Role;
 import edu.najah.stu.domain.User;
+import edu.najah.stu.repository.InMemoryDriverRepository;
 import edu.najah.stu.repository.InMemoryOrderRepository;
 import edu.najah.stu.repository.InMemoryRestaurantRepository;
 import edu.najah.stu.service.MenuService;
@@ -23,13 +27,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Drives the customer's ordering screens with typed answers.
+ * Drives the customer's ordering screens and the manager's order screen with typed answers.
  */
 class OrderConsolesTest {
 
     private final User layan = OrderTestData.customer();
     private final User sojood = OrderTestData.jaltahManager();
     private InMemoryRestaurantRepository restaurants;
+    private InMemoryDriverRepository drivers;
     private InMemoryOrderRepository orders;
     private OrderService orderService;
     private String printed;
@@ -37,6 +42,7 @@ class OrderConsolesTest {
     @BeforeEach
     void setUp() {
         restaurants = OrderTestData.restaurants();
+        drivers = new InMemoryDriverRepository();
         orders = new InMemoryOrderRepository();
         orderService = new OrderService(restaurants, orders, OrderTestData.users(layan, sojood),
                 () -> OrderTestData.MONDAY_4PM, event -> { });
@@ -60,6 +66,17 @@ class OrderConsolesTest {
                 printed = output.toString(StandardCharsets.UTF_8);
             }
         };
+    }
+
+    private void managerScreen(String... lines) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        new RestaurantOrdersConsole(orderService, assignment(), new Scanner(String.join("\n", lines) + "\n"),
+                new PrintStream(output, true, StandardCharsets.UTF_8)).run(sojood);
+        printed = output.toString(StandardCharsets.UTF_8);
+    }
+
+    private DriverAssignmentService assignment() {
+        return new DriverAssignmentService(drivers, orders, event -> { });
     }
 
     private Order placedOrder() {
@@ -140,5 +157,69 @@ class OrderConsolesTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> new OrderConsole(null, restaurantService, menus, in, System.out));
+        assertThrows(IllegalArgumentException.class,
+                () -> new RestaurantOrdersConsole(orderService, null, in, System.out));
+    }
+
+    // ---------- manager ----------
+
+    @Test
+    void managerRunsAnOrderFromStartToDelivery() {
+        drivers.save(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        Order order = placedOrder();
+
+        managerScreen("1", "2", "O1", "2", "O1", "2", "O1", "3", "O1", "2", "2", "O1", "2", "O1", "0");
+
+        assertTrue(printed.contains(" O1 | Jaltah | Pending"), printed);
+        assertTrue(printed.contains("Order O1 is now Confirmed"));
+        assertTrue(printed.contains("Fastest driver: Yousef will deliver order O1"), printed);
+        assertTrue(printed.contains("Order O1 is now Out for delivery"), printed);
+        assertTrue(printed.contains("Order O1 is now Delivered"));
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+    }
+
+    @Test
+    void managerMistakesShowErrors() {
+        placedOrder();
+
+        managerScreen("1", "9", "2", "O9", "3", "O1", "7", "3", "O1", "1", "0");
+
+        assertTrue(printed.contains("Unknown choice: 9"));
+        assertTrue(printed.contains("Error: Order not found: O9"));
+        assertTrue(printed.contains("Error: Please choose 1 or 2"));
+        assertTrue(printed.contains("Error: No available driver can deliver order O1 right now"), printed);
+    }
+
+    @Test
+    void managerSeesNoOrdersAndFinishedOrders() {
+        managerScreen("1", "0");
+        assertTrue(printed.contains("No orders yet."));
+
+        Order order = placedOrder();
+        order.moveTo(OrderStatus.CANCELLED);
+        managerScreen("2", "O1", "0");
+        assertTrue(printed.contains("Error: Order O1 is finished"), printed);
+    }
+
+    @Test
+    void nearestDriverCanBeChosen() {
+        drivers.save(new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30));
+        placedOrder();
+
+        managerScreen("3", "O1", "1", "0");
+
+        assertTrue(printed.contains("Nearest driver: Yousef will deliver order O1"), printed);
+    }
+
+    @Test
+    void managerCannotTouchAnotherRestaurantsOrder() {
+        User otherManager = new User("ward", "x", Role.MANAGER, "manual-02", "w@example.com");
+        placedOrder();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        new RestaurantOrdersConsole(orderService, assignment(), new Scanner("2\nO1\n0\n"),
+                new PrintStream(output, true, StandardCharsets.UTF_8)).run(otherManager);
+
+        assertTrue(output.toString(StandardCharsets.UTF_8).contains("Error: Order not found: O1"));
     }
 }

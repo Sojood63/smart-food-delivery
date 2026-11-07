@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Places and cancels orders (Sprint 2).
+ * Places, cancels and moves orders (Sprints 2 and 3).
  *
  * <p>Ordering rules (US2.2): the order is not empty, every item is on the
  * menu and available, and every quantity is valid. Delivery policies (US2.3):
@@ -122,6 +122,30 @@ public class OrderService {
                     + " and can no longer be cancelled");
         }
         order.moveTo(OrderStatus.CANCELLED);
+        orders.save(order);
+        events.publish(OrderEvent.statusChanged(order));
+        return order;
+    }
+
+    /**
+     * Moves an order to its next status; the customer is told (US3.3, US3.4).
+     * Going out for delivery needs a driver; when the order is delivered, the
+     * driver is free again.
+     *
+     * @param orderId the order
+     * @param next    the next status
+     * @return the changed order
+     * @throws IllegalStateException if the step is not allowed
+     */
+    public Order updateStatus(String orderId, OrderStatus next) {
+        Order order = findOrder(orderId);
+        if (next == OrderStatus.OUT_FOR_DELIVERY && order.getDriver().isEmpty()) {
+            throw new IllegalStateException("Assign a driver before sending order " + orderId + " out");
+        }
+        order.moveTo(next);
+        if (next == OrderStatus.DELIVERED) {
+            order.getDriver().ifPresent(driver -> driver.markAvailable(order.getAddress().location()));
+        }
         orders.save(order);
         events.publish(OrderEvent.statusChanged(order));
         return order;
