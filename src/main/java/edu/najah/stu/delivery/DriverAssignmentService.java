@@ -1,6 +1,7 @@
 package edu.najah.stu.delivery;
 
 import edu.najah.stu.domain.Driver;
+import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.event.EventPublisher;
 import edu.najah.stu.event.OrderEvent;
@@ -13,8 +14,9 @@ import java.util.List;
 /**
  * Assigns a driver to an order (US3.1) with a chosen selection strategy (US3.2).
  *
- * <p>Only available drivers are eligible. The chosen driver becomes busy,
- * the order records the driver, and the customer is told (US3.4).</p>
+ * <p>Only available drivers whose vehicle can carry the order over the
+ * distance are eligible (US5.4). The chosen driver becomes busy, the order
+ * records the driver, and the customer is told (US3.4).</p>
  */
 public class DriverAssignmentService {
 
@@ -42,11 +44,14 @@ public class DriverAssignmentService {
      * Returns the drivers who could take an order now.
      *
      * @param order the order
-     * @return the available drivers
+     * @return available drivers whose vehicle fits the trip and the order size
      */
     public List<Driver> eligibleDrivers(Order order) {
+        Location restaurant = order.getRestaurant().getLocation().orElseThrow();
+        double tripKm = restaurant.distanceKmTo(order.getAddress().location());
         return drivers.findAll().stream()
                 .filter(Driver::isAvailable)
+                .filter(driver -> driver.canDeliver(tripKm, order.itemCount()))
                 .toList();
     }
 

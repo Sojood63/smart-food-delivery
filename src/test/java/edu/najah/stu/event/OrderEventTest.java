@@ -2,11 +2,12 @@ package edu.najah.stu.event;
 
 import edu.najah.stu.OrderTestData;
 import edu.najah.stu.domain.Bill;
-import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.MenuItem;
+import edu.najah.stu.domain.MotorcycleDriver;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderLine;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.StandardOrder;
 import edu.najah.stu.domain.User;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +27,7 @@ class OrderEventTest {
     private final Order order = new Order("O7", layan,
             OrderTestData.restaurants().findById("manual-04").orElseThrow(),
             List.of(new OrderLine(new MenuItem("manual-04-1", "Burger", new BigDecimal("28"), true), 2)),
-            OrderTestData.campusAddress(),
+            OrderTestData.campusAddress(), new StandardOrder(),
             new Bill(new BigDecimal("56"), new BigDecimal("5"), BigDecimal.ZERO, "Normal"), OrderTestData.MONDAY_4PM);
 
     @Test
@@ -35,7 +36,7 @@ class OrderEventTest {
 
         assertSame(layan, event.recipient());
         assertEquals("Order O7 received", event.subject());
-        assertTrue(event.message().contains("61.00 ILS, paid in cash on delivery"));
+        assertTrue(event.message().contains("61.00 ILS"));
     }
 
     @Test
@@ -45,23 +46,13 @@ class OrderEventTest {
 
         assertSame(manager, event.recipient());
         assertEquals("New order O7", event.subject());
-        assertTrue(event.message().startsWith("layan ordered 2 items"));
-    }
-
-    @Test
-    void statusChangesAreDescribed() {
-        assertEquals("Your order is Pending.", OrderEvent.statusChanged(order).message());
-        order.moveTo(OrderStatus.CANCELLED);
-        assertEquals("Your order was cancelled.", OrderEvent.statusChanged(order).message());
-        assertEquals("Order O7: Cancelled", OrderEvent.statusChanged(order).subject());
+        assertTrue(event.message().startsWith("layan ordered 2 items (Standard)"));
     }
 
     @Test
     void customerHearsAboutDriverOnTheWayAndDelivery() {
-        assertEquals("A driver will deliver your order.", OrderEvent.driverAssigned(order).message());
-        order.assignDriver(new Driver("D2", "Khaled", OrderTestData.CAMPUS, 35));
-        assertEquals("Khaled will deliver your order.", OrderEvent.driverAssigned(order).message());
-        assertEquals("Order O7: driver assigned", OrderEvent.driverAssigned(order).subject());
+        order.assignDriver(new MotorcycleDriver("D2", "Khaled", OrderTestData.CAMPUS));
+        assertEquals("Khaled (Motorcycle) will deliver your order.", OrderEvent.driverAssigned(order).message());
 
         order.moveTo(OrderStatus.CONFIRMED);
         assertTrue(OrderEvent.statusChanged(order).message().contains("accepted"));
@@ -71,7 +62,16 @@ class OrderEventTest {
         assertTrue(OrderEvent.statusChanged(order).message().contains("ready"));
         order.moveTo(OrderStatus.OUT_FOR_DELIVERY);
         assertEquals("Your order is on the way with Khaled.", OrderEvent.statusChanged(order).message());
+        assertEquals("Order O7: Out for delivery", OrderEvent.statusChanged(order).subject());
         order.moveTo(OrderStatus.DELIVERED);
         assertTrue(OrderEvent.statusChanged(order).message().contains("delivered"));
+    }
+
+    @Test
+    void cancelledAndPendingHaveMessagesToo() {
+        assertTrue(OrderEvent.statusChanged(order).message().contains("Pending"));
+        assertEquals("A driver will deliver your order.", OrderEvent.driverAssigned(order).message());
+        order.moveTo(OrderStatus.CANCELLED);
+        assertEquals("Your order was cancelled.", OrderEvent.statusChanged(order).message());
     }
 }

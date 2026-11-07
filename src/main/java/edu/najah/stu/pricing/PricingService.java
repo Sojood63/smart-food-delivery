@@ -1,6 +1,7 @@
 package edu.najah.stu.pricing;
 
 import edu.najah.stu.domain.Bill;
+import edu.najah.stu.domain.OrderType;
 import edu.najah.stu.service.TimeProvider;
 
 import java.math.BigDecimal;
@@ -13,7 +14,7 @@ import java.util.Map;
  * Works out the delivery fee from the distance (US4.2) and picks the pricing
  * strategy for an order (US4.3).
  *
- * <p>Choice order: express delivery uses express pricing; a valid promo code
+ * <p>Choice order: express orders use express pricing; a valid promo code
  * uses its promotion; lunch (12:00-14:00) and dinner (19:00-21:00) use peak
  * hour pricing; everything else is normal.</p>
  */
@@ -61,13 +62,13 @@ public class PricingService {
     /**
      * Picks the pricing strategy for an order.
      *
-     * @param express   {@code true} for express delivery
+     * @param type      the order type
      * @param promoCode a promo code, or null or empty for none
      * @return the strategy to use
      * @throws IllegalArgumentException if the promo code is not known
      */
-    public PricingStrategy choose(boolean express, String promoCode) {
-        if (express) {
+    public PricingStrategy choose(OrderType type, String promoCode) {
+        if (type.isExpress()) {
             return new ExpressDeliveryPricing();
         }
         if (promoCode != null && !promoCode.isBlank()) {
@@ -85,12 +86,12 @@ public class PricingService {
      *
      * @param subtotal   the food price
      * @param distanceKm restaurant to customer
-     * @param express    {@code true} for express delivery
+     * @param type       the order type
      * @param promoCode  a promo code, or null for none
      * @return the bill with delivery fee and discount
      */
-    public Bill bill(BigDecimal subtotal, double distanceKm, boolean express, String promoCode) {
-        return choose(express, promoCode).price(subtotal, deliveryFee(distanceKm));
+    public Bill bill(BigDecimal subtotal, double distanceKm, OrderType type, String promoCode) {
+        return choose(type, promoCode).price(subtotal, deliveryFee(distanceKm));
     }
 
     /**

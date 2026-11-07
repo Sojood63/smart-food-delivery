@@ -8,6 +8,7 @@ import edu.najah.stu.domain.MenuItem;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderLine;
 import edu.najah.stu.domain.OrderStatus;
+import edu.najah.stu.domain.OrderType;
 import edu.najah.stu.domain.PaymentStatus;
 import edu.najah.stu.domain.Restaurant;
 import edu.najah.stu.domain.Role;
@@ -30,7 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Places, cancels, moves and pays orders (Sprints 2 to 4).
+ * Places, cancels, moves and pays orders (Sprints 2 and 4).
  *
  * <p>Ordering rules (US2.2): the order is not empty, every item is on the
  * menu and available, and every quantity is valid. Delivery policies (US2.3):
@@ -95,13 +96,13 @@ public class OrderService {
      * @param restaurantId the restaurant to order from
      * @param quantities   menu item id to quantity, in the order the customer chose them
      * @param address      where to deliver
-     * @param express      {@code true} for express delivery
+     * @param type         standard, express or scheduled
      * @param promoCode    a promo code, or null for none
      * @return the new pending order
      * @throws OrderRejectedException if a rule or a delivery policy is broken
      */
     public Order placeOrder(User customer, String restaurantId, Map<String, Integer> quantities,
-                            DeliveryAddress address, boolean express, String promoCode) {
+                            DeliveryAddress address, OrderType type, String promoCode) {
         if (customer == null || customer.getRole() != Role.CUSTOMER) {
             throw new OrderRejectedException("Only a customer can place an order");
         }
@@ -113,14 +114,18 @@ public class OrderService {
         }
         List<OrderLine> lines = toLines(restaurant, quantities);
         double distanceKm = checkDeliveryPolicies(restaurant, address, lines);
+        if (type == null) {
+            throw new OrderRejectedException("Order type must be chosen");
+        }
         Bill bill;
         try {
-            bill = pricing.bill(subtotal(lines), distanceKm, express, promoCode);
+            type.validate(now);
+            bill = pricing.bill(subtotal(lines), distanceKm, type, promoCode);
         } catch (IllegalArgumentException e) {
             throw new OrderRejectedException(e.getMessage());
         }
-        Order order = new Order("O" + (orders.findAll().size() + 1), customer, restaurant, lines, address, bill,
-                now);
+        Order order = new Order("O" + (orders.findAll().size() + 1), customer, restaurant, lines, address, type,
+                bill, now);
         orders.save(order);
         events.publish(OrderEvent.placed(order));
         managerOf(restaurant).ifPresent(manager -> events.publish(OrderEvent.newOrderForRestaurant(manager, order)));

@@ -1,44 +1,86 @@
 package edu.najah.stu.domain;
 
 /**
- * A delivery driver who can be assigned to one order at a time (US3.1).
+ * A delivery driver. Each kind of vehicle is a subclass that sets its own
+ * speed and limits and can add its own rules (US5.3, US5.4); the assignment
+ * service only calls {@link #canDeliver}.
  */
-public class Driver {
+public abstract class Driver {
 
     private final String id;
     private final String name;
     private final double speedKmh;
+    private final double maxDistanceKm;
+    private final int maxItems;
     private Location location;
     private DriverStatus status = DriverStatus.AVAILABLE;
 
     /**
      * Creates an available driver.
      *
-     * @param id       unique id, for example {@code "D1"}
-     * @param name     the driver's name
-     * @param location where the driver is now
-     * @param speedKmh the driver's usual speed in town, in km/h; more than zero
+     * @param id            unique id, for example {@code "D1"}
+     * @param name          the driver's name
+     * @param location      where the driver is now
+     * @param speedKmh      the vehicle's usual speed in town, in km/h
+     * @param maxDistanceKm the longest trip, restaurant to customer, in km
+     * @param maxItems      the most items the vehicle can carry
      */
-    public Driver(String id, String name, Location location, double speedKmh) {
+    protected Driver(String id, String name, Location location, double speedKmh, double maxDistanceKm,
+                     int maxItems) {
         if (id == null || id.isBlank() || name == null || name.isBlank() || location == null) {
             throw new IllegalArgumentException("Driver needs an id, a name and a location");
-        }
-        if (!(speedKmh > 0)) {
-            throw new IllegalArgumentException("Speed must be more than zero");
         }
         this.id = id;
         this.name = name;
         this.location = location;
         this.speedKmh = speedKmh;
+        this.maxDistanceKm = maxDistanceKm;
+        this.maxItems = maxItems;
     }
 
     /**
-     * Returns the usual speed in town.
+     * Returns the kind of vehicle, shown to people.
+     *
+     * @return for example {@code "Bicycle"}
+     */
+    public abstract String vehicle();
+
+    /**
+     * Returns the usual speed of this vehicle in town.
      *
      * @return the speed in km/h
      */
     public double speedKmh() {
         return speedKmh;
+    }
+
+    /**
+     * Returns the longest trip this vehicle may make, restaurant to customer.
+     *
+     * @return the distance in km
+     */
+    public double maxDistanceKm() {
+        return maxDistanceKm;
+    }
+
+    /**
+     * Returns the most items this vehicle can carry in one order.
+     *
+     * @return the number of items
+     */
+    public int maxItems() {
+        return maxItems;
+    }
+
+    /**
+     * Tells whether this driver's vehicle can carry an order over a distance.
+     *
+     * @param tripKm     restaurant to customer, in km
+     * @param itemCount  items in the order
+     * @return {@code true} if the trip and the order fit the vehicle
+     */
+    public boolean canDeliver(double tripKm, int itemCount) {
+        return tripKm <= maxDistanceKm() && itemCount <= maxItems();
     }
 
     /**

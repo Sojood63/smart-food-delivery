@@ -1,6 +1,8 @@
 package edu.najah.stu.pricing;
 
 import edu.najah.stu.domain.Bill;
+import edu.najah.stu.domain.ExpressOrder;
+import edu.najah.stu.domain.StandardOrder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -75,22 +77,23 @@ class PricingTest {
     }
 
     @Test
-    void expressDeliveryAlwaysUsesExpressPricing() {
-        assertInstanceOf(ExpressDeliveryPricing.class, at(12, 30).choose(true, "NAJAH10"));
+    void expressOrdersAlwaysUseExpressPricing() {
+        assertInstanceOf(ExpressDeliveryPricing.class, at(12, 30).choose(new ExpressOrder(), "NAJAH10"));
     }
 
     @Test
     void validPromoCodeIsUsedWhateverTheCase() {
-        assertInstanceOf(PromotionalPricing.class, at(12, 30).choose(false, " najah10 "));
+        assertInstanceOf(PromotionalPricing.class, at(12, 30).choose(new StandardOrder(), " najah10 "));
         assertEquals(new BigDecimal("12.00"),
-                at(16, 0).bill(FOOD, 0, false, "WELCOME20").discount());
+                at(16, 0).bill(FOOD, 0, new StandardOrder(), "WELCOME20").discount());
     }
 
     @Test
     void unknownPromoCodeIsRejected() {
         PricingService pricing = at(16, 0);
+        StandardOrder standard = new StandardOrder();
 
-        assertThrows(IllegalArgumentException.class, () -> pricing.choose(false, "FREEFOOD"));
+        assertThrows(IllegalArgumentException.class, () -> pricing.choose(standard, "FREEFOOD"));
     }
 
     @ParameterizedTest
@@ -99,7 +102,7 @@ class PricingTest {
         LocalTime t = LocalTime.parse(time);
 
         assertTrue(PricingService.isPeakHour(t));
-        assertInstanceOf(PeakHourPricing.class, at(t.getHour(), t.getMinute()).choose(false, ""));
+        assertInstanceOf(PeakHourPricing.class, at(t.getHour(), t.getMinute()).choose(new StandardOrder(), ""));
     }
 
     @ParameterizedTest
@@ -108,7 +111,7 @@ class PricingTest {
         LocalTime t = LocalTime.parse(time);
 
         assertFalse(PricingService.isPeakHour(t));
-        assertInstanceOf(NormalPricing.class, at(t.getHour(), t.getMinute()).choose(false, null));
+        assertInstanceOf(NormalPricing.class, at(t.getHour(), t.getMinute()).choose(new StandardOrder(), null));
     }
 
     @Test
