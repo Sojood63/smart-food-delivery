@@ -7,8 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Keeps restaurants in memory only; everything is lost when the program ends.
+ * Used by tests, which need a fast repository with no files.
+ */
 public class InMemoryRestaurantRepository implements RestaurantRepository {
 
+    /** The restaurants by id, in the order they were first saved. */
     private final Map<String, Restaurant> restaurants = new LinkedHashMap<>();
 
     @Override
