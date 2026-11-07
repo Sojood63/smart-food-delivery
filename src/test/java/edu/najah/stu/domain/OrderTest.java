@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -86,5 +87,26 @@ class OrderTest {
         assertThrows(IllegalArgumentException.class, () -> new DeliveryAddress(null, CAMPUS));
         assertThrows(IllegalArgumentException.class, () -> new DeliveryAddress("Home", null));
         assertEquals("Home", new DeliveryAddress("  Home ", CAMPUS).description());
+    }
+
+    @Test
+    void recordsOneDriverOnly() {
+        Driver first = new Driver("D1", "Yousef", CAMPUS, 30);
+        Driver second = new Driver("D2", "Rami", CAMPUS, 30);
+        assertEquals(Optional.empty(), order.getDriver());
+
+        order.assignDriver(first);
+
+        assertEquals(Optional.of(first), order.getDriver());
+        assertThrows(IllegalStateException.class, () -> order.assignDriver(second));
+        assertThrows(IllegalArgumentException.class, () -> order.assignDriver(null));
+    }
+
+    @Test
+    void finishedOrderCannotGetADriver() {
+        order.moveTo(OrderStatus.CANCELLED);
+        Driver driver = new Driver("D1", "Yousef", CAMPUS, 30);
+
+        assertThrows(IllegalStateException.class, () -> order.assignDriver(driver));
     }
 }

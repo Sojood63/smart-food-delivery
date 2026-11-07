@@ -2,6 +2,7 @@ package edu.najah.stu.service;
 
 import edu.najah.stu.OrderTestData;
 import edu.najah.stu.domain.DeliveryAddress;
+import edu.najah.stu.domain.Driver;
 import edu.najah.stu.domain.Location;
 import edu.najah.stu.domain.Order;
 import edu.najah.stu.domain.OrderStatus;
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * Placing, rejecting and cancelling orders (Sprint 2).
+ * Placing, rejecting, cancelling and moving orders (Sprints 2 and 3).
  * Notifications are a Mockito mock; the clock is fixed.
  */
 @ExtendWith(MockitoExtension.class)
@@ -202,6 +203,43 @@ class OrderServiceTest {
         assertThrows(OrderRejectedException.class, () -> service.cancelOrder(other, id));
         assertThrows(OrderRejectedException.class, () -> service.cancelOrder(null, id));
         assertThrows(OrderNotFoundException.class, () -> service.cancelOrder(layan, "O99"));
+    }
+
+    // ---------- US3.3 status changes ----------
+
+    @Test
+    void wholeLifeCycleNotifiesTheCustomerAndFreesTheDriver() {
+        Order order = placeStandard();
+        Driver driver = new Driver("D4", "Yousef", OrderTestData.CAMPUS, 30);
+        order.assignDriver(driver);
+        driver.markBusy();
+
+        for (OrderStatus next : List.of(OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY,
+                OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED)) {
+            service.updateStatus(order.getId(), next);
+        }
+
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+        assertTrue(driver.isAvailable());
+        verify(events).publish(OrderEvent.statusChanged(order));
+    }
+
+    @Test
+    void invalidStepIsRejected() {
+        String id = placeStandard().getId();
+
+        assertThrows(IllegalStateException.class, () -> service.updateStatus(id, OrderStatus.READY));
+    }
+
+    @Test
+    void orderCannotGoOutWithoutADriver() {
+        Order order = placeStandard();
+        service.updateStatus(order.getId(), OrderStatus.CONFIRMED);
+        service.updateStatus(order.getId(), OrderStatus.PREPARING);
+        service.updateStatus(order.getId(), OrderStatus.READY);
+        String id = order.getId();
+
+        assertThrows(IllegalStateException.class, () -> service.updateStatus(id, OrderStatus.OUT_FOR_DELIVERY));
     }
 
     // ---------- lists ----------
